@@ -1852,9 +1852,12 @@ export default function App(){
   const [tarifs,     ,  , tarReady]  = useFireDoc("config","tarifs",    TARIFS_INIT);
   const [clients, upsertClient, , cliReady] = useFireCollection("clients", []);
 
-  const allReady = cmdReady&&fripReady&&rewReady&&tarReady&&cliReady;
+  // Afficher apres 1.5s max
+  const [showApp, setShowApp] = useState(false);
+  useEffect(()=>{ const t=setTimeout(()=>setShowApp(true),1500); return()=>clearTimeout(t); },[]);
+  const ready = cmdReady||showApp;
 
-  if(!allReady) return (
+  if(!ready) return (
     <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:DARK}}>
       <Logo size={80} style={{margin:"0 auto"}} />
       <p style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,letterSpacing:3,color:BLU2,marginTop:16}}>JOKER LAVERIE</p>
