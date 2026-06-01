@@ -1846,13 +1846,15 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
 // ─── GÉNÉRATION FACTURE WHATSAPP ──────────────────────────
 
 export default function App(){
-  const [commandes,  ,  , cmdReady]  = useFireCollection("commandes",  []);
+  const [commandes, upsertCmd, , cmdReady] = useFireCollection("commandes", []);
   const [friperie,   ,  , fripReady] = useFireCollection("friperie",   []);
-  const [rewards,    ,  , rewReady]  = useFireCollection("rewards",     []);
+  const [rewards,    ,  , rewReady]  = useFireDoc("config","rewards",   []);
   const [tarifs,     ,  , tarReady]  = useFireDoc("config","tarifs",    TARIFS_INIT);
   const [clients, upsertClient, , cliReady] = useFireCollection("clients", []);
 
-  if(!cmdReady) return (
+  const allReady = cmdReady&&fripReady&&rewReady&&tarReady&&cliReady;
+
+  if(!allReady) return (
     <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:DARK}}>
       <Logo size={80} style={{margin:"0 auto"}} />
       <p style={{fontFamily:"'Bebas Neue',cursive",fontSize:22,letterSpacing:3,color:BLU2,marginTop:16}}>JOKER LAVERIE</p>
@@ -1873,7 +1875,7 @@ export default function App(){
       <ClientSpace
         commandes={commandes}
         setCommandes={()=>{}}
-        upsertCmd={null}
+        upsertCmd={upsertCmd}
         upsertClient={upsertClient}
         clients={clients}
         friperie={friperie}
