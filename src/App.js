@@ -1622,7 +1622,7 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
   useEffect(()=>{
     if(res){
       const updated=commandes.find(c=>c.id===res.id);
-      if(updated&&updated.statut!==res.statut) setRes(updated);
+      if(updated) setRes(updated); // toujours mettre à jour
     }
     if(resAll){
       const updatedAll=resAll.map(c=>commandes.find(fc=>fc.id===c.id)||c);
@@ -1707,9 +1707,16 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
             </div>
           )}
 
-          {/* Services rapides — affichés quand pas de résultat */}
+          {/* Page d'accueil — affichée quand pas de résultat */}
           {!res&&!resAll&&!notFound&&(
-            <div style={{marginBottom:16}}>
+            <div>
+              {/* Message de bienvenue */}
+              <div style={{background:`linear-gradient(135deg,#0D1F6E22,${CARD})`,borderRadius:20,padding:"20px 18px",marginBottom:16,border:`1px solid ${BLU2}30`,textAlign:"center"}}>
+                <p style={{fontSize:28,marginBottom:8}}>👋</p>
+                <p style={{fontWeight:800,fontSize:18,marginBottom:4}}>Bienvenue chez JOKER Laverie !</p>
+                <p style={{color:"#8892B0",fontSize:13,lineHeight:1.6}}>Entrez votre numéro de ticket ou votre nom pour suivre votre commande en temps réel.</p>
+              </div>
+
               <p style={{fontSize:11,color:"#8892B0",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>Nos services</p>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 {[
@@ -1908,18 +1915,7 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
               )}
             </div>
           )}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            {[{icon:"⚖️",t:"Pesée directe",d:"Tarif calculé devant vous"},{icon:"🛵",t:"Livraison moto",d:"Dépôt & récupération"},{icon:"🏅",t:"Points fidélité",d:"1 pt / 100 FCFA"},{icon:"💳",t:"Mobile Money",d:"Flooz · T-Money"}].map(c=>(
-              <div key={c.t} style={{background:CARD,borderRadius:18,padding:14,border:`1px solid ${BDR}`}}>
-                <div style={{fontSize:22,marginBottom:6}}>{c.icon}</div>
-                <p style={{fontWeight:700,fontSize:12,marginBottom:3}}>{c.t}</p>
-                <p style={{fontSize:11,color:"#8892B0",lineHeight:1.4}}>{c.d}</p>
-              </div>
-            ))}
-          </div>
         </div>
-      )}
-
       )}
       {tab==="fidelite"&&(
         <div style={{padding:"16px 16px 0"}}>
