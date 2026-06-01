@@ -1618,6 +1618,18 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
     }
   },[urlTicket,commandes.length]);
 
+  // 🔄 Sync temps réel — mettre à jour res quand Firestore change
+  useEffect(()=>{
+    if(res){
+      const updated=commandes.find(c=>c.id===res.id);
+      if(updated&&updated.statut!==res.statut) setRes(updated);
+    }
+    if(resAll){
+      const updatedAll=resAll.map(c=>commandes.find(fc=>fc.id===c.id)||c);
+      setResAll(updatedAll);
+    }
+  },[commandes]);
+
   function chercher(){
     const terme=rech.trim().toLowerCase();
     // Chercher par N° exact d'abord
@@ -1653,30 +1665,84 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
   }
 
   return (
-    <div style={{paddingBottom:70}}>
-      <div style={{padding:"32px 20px 0",textAlign:"center"}}>
-        <Logo size={80} style={{margin:"0 auto 12px"}} />
-        <h1 style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,letterSpacing:3}}>JOKER LAVERIE</h1>
-        <p style={{color:BLU2,fontSize:11,letterSpacing:3,marginTop:2}}>PROPRETÉ · QUALITÉ · FIABILITÉ</p>
-        <p style={{color:"#8892B0",fontSize:12,marginTop:4}}>Lomé, Togo</p>
+    <div style={{paddingBottom:80,minHeight:"100vh",background:DARK}}>
+
+      {/* ── HERO HEADER ── */}
+      <div style={{background:`linear-gradient(160deg,#060D1F 0%,#0D1F6E 50%,#060D1F 100%)`,padding:"32px 20px 24px",textAlign:"center",position:"relative",overflow:"hidden"}}>
+        {/* Cercles décoratifs */}
+        <div style={{position:"absolute",top:-40,right:-40,width:160,height:160,borderRadius:"50%",background:`radial-gradient(circle,${BLU2}15,transparent 70%)`,pointerEvents:"none"}} />
+        <div style={{position:"absolute",bottom:-20,left:-20,width:120,height:120,borderRadius:"50%",background:`radial-gradient(circle,${CYAN}10,transparent 70%)`,pointerEvents:"none"}} />
+        <Logo size={72} style={{margin:"0 auto 10px"}} />
+        <h1 style={{fontFamily:"'Bebas Neue',cursive",fontSize:30,letterSpacing:4,margin:"0 0 4px"}}>JOKER LAVERIE</h1>
+        <p style={{color:BLU2,fontSize:11,letterSpacing:3}}>PROPRETÉ · QUALITÉ · FIABILITÉ</p>
+        <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(0,194,255,0.1)",borderRadius:99,padding:"4px 14px",marginTop:8,border:"1px solid rgba(0,194,255,0.2)"}}>
+          <span style={{width:8,height:8,borderRadius:"50%",background:"#4ADE80",display:"inline-block",boxShadow:"0 0 8px #4ADE80"}} />
+          <span style={{fontSize:11,color:"#4ADE80",fontWeight:700}}>Ouvert · Lomé, Togo</span>
+        </div>
       </div>
-      <div style={{display:"flex",margin:"16px 20px 0",background:CARD,borderRadius:14,overflow:"hidden",border:`1px solid ${BDR}`}}>
-        {[{id:"suivi",l:"📦 Commande"},{id:"fidelite",l:"🏅 Fidélité"},{id:"friperie",l:"👗 Friperie"}].map(tb=>(
-          <button key={tb.id} onClick={()=>setTab(tb.id)} style={{flex:1,background:tab===tb.id?`linear-gradient(135deg,${BLU},${BLU2})`:"transparent",border:"none",padding:"12px 4px",color:tab===tb.id?"#fff":"#8892B0",fontWeight:700,fontSize:11,cursor:"pointer"}}>{tb.l}</button>
+
+      {/* ── TABS ── */}
+      <div style={{display:"flex",margin:"0",background:"#060D1F",borderBottom:`1px solid ${BDR}`,position:"sticky",top:0,zIndex:40}}>
+        {[{id:"suivi",icon:"📦",l:"Commande"},{id:"fidelite",icon:"🏅",l:"Fidélité"},{id:"friperie",icon:"👗",l:"Friperie"}].map(tb=>(
+          <button key={tb.id} onClick={()=>setTab(tb.id)} style={{flex:1,background:"transparent",border:"none",borderBottom:`3px solid ${tab===tb.id?CYAN:"transparent"}`,padding:"14px 4px",color:tab===tb.id?CYAN:"#8892B0",fontWeight:700,fontSize:11,cursor:"pointer",transition:"all 0.2s",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+            <span style={{fontSize:16}}>{tb.icon}</span>
+            <span>{tb.l}</span>
+          </button>
         ))}
       </div>
 
       {tab==="suivi"&&(
-        <div style={{padding:"16px 20px 0"}}>
-
-          {/* Bouton ramassage à domicile */}
+        <div style={{padding:"16px 16px 0"}}>
           <RamassageBlock commandes={commandes} setCommandes={setCommandes} upsertCmd={upsertCmd} upsertClient={upsertClient} clients={clients} tarifs={tarifs} />
 
-          <div style={{display:"flex",gap:10,marginBottom:14}}>
-            <input value={rech} onChange={e=>setRech(e.target.value)} onKeyDown={e=>e.key==="Enter"&&chercher()} placeholder="N° ticket ou nom…" style={{flex:1,background:CARD,border:`1px solid ${BDR}`,borderRadius:14,padding:"13px 15px",color:"#F8FAFF",fontSize:15,outline:"none"}} />
-            <button onClick={chercher} style={{background:`linear-gradient(135deg,${BLU},${BLU2})`,border:"none",borderRadius:14,padding:"13px 16px",color:"#fff",fontWeight:700,fontSize:18,cursor:"pointer"}}>🔍</button>
+          {/* Barre de recherche */}
+          <div style={{display:"flex",gap:8,marginBottom:14}}>
+            <input value={rech} onChange={e=>setRech(e.target.value)} onKeyDown={e=>e.key==="Enter"&&chercher()} placeholder="N° ticket ou nom…" style={{flex:1,background:CARD,border:`1px solid ${BDR}`,borderRadius:16,padding:"14px 16px",color:"#F8FAFF",fontSize:15,outline:"none"}} />
+            <button onClick={chercher} style={{background:`linear-gradient(135deg,${BLU},${BLU2})`,border:"none",borderRadius:16,padding:"14px 18px",color:"#fff",fontWeight:700,fontSize:18,cursor:"pointer",boxShadow:`0 4px 20px ${BLU}40`}}>🔍</button>
           </div>
-          {notFound&&<p style={{color:"#FF6B6B",fontSize:14,marginBottom:12}}>Aucune commande trouvée.</p>}
+          {notFound&&(
+            <div style={{background:"#1A0A0A",borderRadius:14,padding:"14px 16px",marginBottom:14,border:"1px solid #FF6B6B30",display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:20}}>❌</span>
+              <p style={{color:"#FF6B6B",fontSize:13}}>Aucune commande trouvée. Vérifiez le numéro ou le nom.</p>
+            </div>
+          )}
+
+          {/* Services rapides — affichés quand pas de résultat */}
+          {!res&&!resAll&&!notFound&&(
+            <div style={{marginBottom:16}}>
+              <p style={{fontSize:11,color:"#8892B0",letterSpacing:2,textTransform:"uppercase",marginBottom:12}}>Nos services</p>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {[
+                  {icon:"⚖️",title:"Pesée directe",desc:"Tarif calculé devant vous",color:BLU2},
+                  {icon:"🛵",title:"Livraison moto",desc:"Dépôt & récupération",color:"#A855F7"},
+                  {icon:"🏅",title:"Points fidélité",desc:"Cumulez & profitez",color:"#FFB800"},
+                  {icon:"📱",title:"Mobile Money",desc:"Flooz · T-Money",color:"#4ADE80"},
+                ].map(s=>(
+                  <div key={s.title} style={{background:CARD,borderRadius:18,padding:"16px 14px",border:`1px solid ${s.color}20`,display:"flex",flexDirection:"column",gap:8}}>
+                    <div style={{width:42,height:42,borderRadius:12,background:`${s.color}15`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{s.icon}</div>
+                    <div>
+                      <p style={{fontWeight:700,fontSize:13,color:"#F8FAFF"}}>{s.title}</p>
+                      <p style={{fontSize:11,color:"#8892B0",marginTop:2}}>{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Horaires */}
+              <div style={{background:CARD,borderRadius:18,padding:"16px",marginTop:12,border:`1px solid ${BDR}`}}>
+                <p style={{fontWeight:700,fontSize:13,color:BLU2,marginBottom:10,letterSpacing:1}}>🕐 HORAIRES</p>
+                {[["Lun – Sam","7h00 – 20h00"],["Dimanche","8h00 – 14h00"]].map(([j,h])=>(
+                  <div key={j} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${BDR}`}}>
+                    <span style={{fontSize:13,color:"#8892B0"}}>{j}</span>
+                    <span style={{fontSize:13,fontWeight:700}}>{h}</span>
+                  </div>
+                ))}
+                <button onClick={()=>window.open("https://wa.me/22879621085","_blank")} style={{width:"100%",background:"linear-gradient(135deg,#0D3B1A,#006b2b)",border:"1px solid #25D36640",borderRadius:14,padding:"12px",color:"#25D366",fontWeight:700,fontSize:13,cursor:"pointer",marginTop:14,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  💬 Nous contacter sur WhatsApp
+                </button>
+              </div>
+            </div>
+          )}
           {resAll&&(
             <div style={{marginBottom:16}}>
               <p style={{fontSize:13,color:"#8892B0",marginBottom:10}}>
@@ -1739,10 +1805,10 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
                 <p style={{fontWeight:700,fontSize:13,marginBottom:16,letterSpacing:1,color:"#8892B0",textTransform:"uppercase"}}>Suivi de votre commande</p>
                 {(()=>{
                   const etapes=[
-                    {id:"depose",   label:"Linge déposé",      icon:"📥", desc:"Votre linge a bien été reçu"},
-                    {id:"traitement",label:"En traitement",    icon:"⚙️", desc:res.dureeEstimee?"Durée estimée : "+res.dureeEstimee:"Traitement en cours"},
-                    {id:"pret",     label:"Prêt à récupérer", icon:"🎉", desc:"Votre linge est propre et prêt"},
-                    {id:"recupere", label:"Récupéré",          icon:"✅", desc:"Merci de votre confiance !"},
+                    {id:"depose",    label:"Linge déposé",      icon:"📥", desc:"Reçu le "+res.date+(res.heureDepot?" à "+res.heureDepot:"")},
+                    {id:"traitement",label:"En traitement",     icon:"⚙️", desc:res.dureeEstimee?"Durée estimée : "+res.dureeEstimee:"Traitement en cours"},
+                    {id:"pret",      label:"Prêt à récupérer",  icon:"🎉", desc:res.statut==="Prêt"||res.statut==="Récupéré"?"Votre linge est propre !":"En attente"},
+                    {id:"recupere",  label:"Récupéré",          icon:"✅", desc:res.statut==="Récupéré"?"Merci de votre confiance !":"En attente de récupération"},
                   ];
                   const statutIdx={"En cours":1,"Prêt":2,"Récupéré":3};
                   const current=statutIdx[res.statut]??1;
@@ -1854,39 +1920,41 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
         </div>
       )}
 
-      {tab==="fidelite"&&(
-        <ClientFidelite commandes={commandes} rewards={rewards} />
       )}
-
+      {tab==="fidelite"&&(
+        <div style={{padding:"16px 16px 0"}}>
+          <ClientFidelite commandes={commandes} rewards={rewards} />
+        </div>
+      )}
       {tab==="friperie"&&(
-        <div style={{padding:"16px 20px 0"}}>
-          <p style={{color:"#8892B0",fontSize:13,marginBottom:14}}>Articles sélectionnés · Lomé, Togo</p>
-          {friperie.length===0&&<div style={{textAlign:"center",padding:24}}><p style={{fontSize:36,marginBottom:8}}>👗</p><p style={{color:"#8892B0",fontSize:14}}>Aucun article disponible.</p></div>}
+        <div style={{padding:"16px 16px 0"}}>
+          <p style={{fontSize:11,color:"#8892B0",letterSpacing:2,textTransform:"uppercase",marginBottom:14}}>Articles disponibles · Lomé</p>
+          {friperie.length===0&&(
+            <div style={{textAlign:"center",padding:40,background:CARD,borderRadius:20,border:`1px solid ${BDR}`}}>
+              <p style={{fontSize:48,marginBottom:12}}>👗</p>
+              <p style={{color:"#F8FAFF",fontWeight:700,fontSize:16,marginBottom:6}}>Bientôt disponible</p>
+              <p style={{color:"#8892B0",fontSize:13}}>Notre sélection de vêtements arrive prochainement.</p>
+            </div>
+          )}
           <div style={{display:"flex",flexDirection:"column",gap:14,marginBottom:20}}>
           {friperie.map(item=>(
-            <div key={item.id} style={{background:CARD,borderRadius:20,border:`1px solid ${BDR}`,overflow:"hidden"}}>
-              {/* Photo */}
-              <div style={{width:"100%",height:200,background:"#0A0F1E",position:"relative",overflow:"hidden"}}>
+            <div key={item.id} style={{background:CARD,borderRadius:20,border:`1px solid ${BDR}`,overflow:"hidden",boxShadow:"0 4px 24px rgba(0,0,0,0.3)"}}>
+              <div style={{width:"100%",height:220,background:"#0A0F1E",position:"relative",overflow:"hidden"}}>
                 {item.photo
                   ? <img src={item.photo} alt={item.nom} style={{width:"100%",height:"100%",objectFit:"cover"}} />
-                  : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:72}}>{item.emoji}</div>
+                  : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:80}}>{item.emoji}</div>
                 }
-                <span style={{position:"absolute",top:10,left:10,background:"rgba(6,13,31,0.88)",borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700,color:CYAN}}>{item.etat}</span>
-                <span style={{position:"absolute",top:10,right:10,background:`linear-gradient(135deg,${BLU},${BLU2})`,borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:700,color:"#fff"}}>{item.taille}</span>
+                <div style={{position:"absolute",inset:0,background:"linear-gradient(to top,rgba(6,13,31,0.8) 0%,transparent 50%)"}} />
+                <span style={{position:"absolute",top:12,left:12,background:"rgba(6,13,31,0.9)",borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,color:CYAN,backdropFilter:"blur(8px)"}}>{item.etat}</span>
+                <span style={{position:"absolute",top:12,right:12,background:`linear-gradient(135deg,${BLU},${BLU2})`,borderRadius:20,padding:"4px 12px",fontSize:11,fontWeight:700,color:"#fff"}}>{item.taille}</span>
+                <div style={{position:"absolute",bottom:12,left:14,right:14}}>
+                  <p style={{fontWeight:800,fontSize:17,color:"#fff",marginBottom:2}}>{item.nom}</p>
+                  <p style={{color:CYAN,fontWeight:700,fontSize:20}}>{fmt(item.prix)} FCFA</p>
+                </div>
               </div>
               <div style={{padding:"14px 16px"}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                  <div>
-                    <p style={{fontWeight:700,fontSize:16}}>{item.nom}</p>
-                    <p style={{fontSize:12,color:"#8892B0",marginTop:2}}>Taille {item.taille} · {item.etat}</p>
-                  </div>
-                  <div style={{textAlign:"right"}}>
-                    <p style={{color:CYAN,fontWeight:700,fontSize:22}}>{fmt(item.prix)} F</p>
-                    <p style={{fontSize:10,color:"#8892B0"}}>FCFA</p>
-                  </div>
-                </div>
-                <button onClick={()=>{const msg=`Bonjour JOKER Laverie ! 👋%0A%0AJe suis intéressé(e) par :%0A%0A👗 *${item.nom}*%0A📏 Taille : ${item.taille}%0A✨ État : ${item.etat}%0A💰 Prix : ${item.prix.toLocaleString("fr-FR")} FCFA%0A%0AEst-il encore disponible ?`;window.open(`https://wa.me/22879621085?text=${msg}`,"_blank");}} style={{width:"100%",background:"linear-gradient(135deg,#25D366,#128C7E)",border:"none",borderRadius:14,padding:"12px",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                  <span style={{fontSize:20}}>📲</span> Commander via WhatsApp
+                <button onClick={()=>{const msg=`Bonjour JOKER Laverie ! 👋%0A%0AJe suis intéressé(e) par :%0A%0A👗 *${item.nom}*%0A📏 Taille : ${item.taille}%0A✨ État : ${item.etat}%0A💰 Prix : ${item.prix.toLocaleString("fr-FR")} FCFA%0A%0AEst-il encore disponible ?`;window.open(`https://wa.me/22879621085?text=${msg}`,"_blank");}} style={{width:"100%",background:"linear-gradient(135deg,#25D366,#128C7E)",border:"none",borderRadius:14,padding:"13px",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span style={{fontSize:18}}>📲</span> Commander via WhatsApp
                 </button>
               </div>
             </div>
