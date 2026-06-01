@@ -1709,65 +1709,121 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
             </div>
           )}
           {res&&(
-            <div style={{background:CARD,borderRadius:20,padding:18,marginBottom:16,border:`1px solid ${statutColor[res.statut]||BLU2}40`}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
-                <div><p style={{fontWeight:700,fontSize:16}}>{res.client}</p><p style={{fontSize:13,color:"#8892B0"}}>{res.id} · {res.date}</p></div>
-                <Badge statut={res.statut} />
-              </div>
-              {[["Poids",res.poids+"kg"+(res.poidsStatut==="estimated"?" (estimé)":"")],["Total",fmt(res.total)+" FCFA"+(res.poidsStatut==="estimated"?" (estimé)":"")],["+Points","+"+res.points+" 🏅"]].map(([k,v])=>(
-                <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderTop:"1px solid rgba(255,255,255,0.05)"}}>
-                  <span style={{color:"#8892B0",fontSize:13}}>{k}</span>
-                  <span style={{fontWeight:700,color:k==="+Points"?BLU2:"#F8FAFF",fontSize:13}}>{v}</span>
+            <div style={{animation:"fadeIn 0.35s ease"}}>
+              {/* ── EN-TÊTE COMMANDE ── */}
+              <div style={{background:`linear-gradient(135deg,${CARD},#0D1A3D)`,borderRadius:24,padding:20,marginBottom:14,border:`2px solid ${statutColor[res.statut]||BLU2}50`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+                  <div>
+                    <p style={{fontWeight:800,fontSize:18,marginBottom:2}}>{res.client}</p>
+                    <p style={{fontSize:12,color:"#8892B0"}}>🎫 {res.id}</p>
+                    <p style={{fontSize:12,color:"#8892B0"}}>📅 Déposé le {res.date}</p>
+                  </div>
+                  <Badge statut={res.statut} />
                 </div>
-              ))}
-              {res.paiementConfirme&&<div style={{background:"#0D3B2E",borderRadius:10,padding:"10px",marginTop:10,border:`1px solid ${CYAN}40`}}><p style={{color:CYAN,fontWeight:700,fontSize:13}}>✅ Paiement confirmé</p></div>}
-
-              {/* ⏱️ Estimation du temps - affiché si En cours */}
-              {res.statut==="En cours"&&res.dureeEstimee&&(()=>{
-                const maintenant=Date.now();
-                const retrait=res.heureRetrait?new Date(res.heureRetrait).getTime():null;
-                const restMs=retrait?retrait-maintenant:null;
-                const restH=restMs?Math.max(0,Math.ceil(restMs/3600000)):null;
-                const depasse=restMs!==null&&restMs<0;
-                return (
-                  <div style={{background:depasse?"#1A0A00":"#0D1A3D",borderRadius:12,padding:"12px 14px",marginTop:10,border:`1px solid ${depasse?"#FF6B6B40":BLU2+"40"}`}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <span style={{fontSize:20}}>⏱️</span>
-                      <div>
-                        <p style={{fontWeight:700,fontSize:13,color:depasse?"#FF6B6B":CYAN}}>
-                          {depasse?"Traitement en cours...":"Prêt dans environ "+restH+"h"}
-                        </p>
-                        <p style={{fontSize:11,color:"#8892B0",marginTop:2}}>
-                          Estimation : {res.dureeEstimee}
-                        </p>
-                      </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                  {[
+                    {l:"Poids",v:res.poids+"kg"+(res.poidsStatut==="estimated"?" ≈":""),c:"#FFB800"},
+                    {l:"Total",v:fmt(res.total)+" F",c:CYAN},
+                    {l:"Points",v:"+"+res.points+" 🏅",c:BLU2},
+                  ].map(s=>(
+                    <div key={s.l} style={{background:"rgba(0,0,0,0.3)",borderRadius:12,padding:"10px",textAlign:"center"}}>
+                      <p style={{fontWeight:700,fontSize:14,color:s.c}}>{s.v}</p>
+                      <p style={{fontSize:10,color:"#8892B0",marginTop:2}}>{s.l}</p>
                     </div>
-                  </div>
-                );
-              })()}
+                  ))}
+                </div>
+              </div>
 
-              {res.statut==="En cours"&&!res.paiementConfirme&&(
-                <div style={{marginTop:12}}>
-                  <p style={{fontSize:12,color:"#8892B0",marginBottom:10}}>Payer par mobile money :</p>
-                  <div style={{display:"flex",gap:10}}>
-                    <button onClick={()=>sendWhatsApp(JOKER_FLOOZ,`🃏 *JOKER Laverie*\n\n💳 Paiement Flooz\n\nEnvoyez *${fmt(res.total)} FCFA* au :\n📱 *${JOKER_FLOOZ}*\n\n🎫 Réf: *${res.id}*`)} style={{flex:1,background:"linear-gradient(135deg,#004d20,#006b2b)",border:"1px solid #00A65140",borderRadius:14,padding:"14px 8px",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                      <span style={{fontSize:20}}>🟢</span><span>Flooz</span>
-                    </button>
-                    <button onClick={()=>sendWhatsApp(JOKER_TMONEY,`🃏 *JOKER Laverie*\n\n💳 Paiement T-Money\n\nEnvoyez *${fmt(res.total)} FCFA* au :\n📱 *${JOKER_TMONEY}*\n\n🎫 Réf: *${res.id}*`)} style={{flex:1,background:"linear-gradient(135deg,#4d0000,#6b0000)",border:"1px solid #E3061340",borderRadius:14,padding:"14px 8px",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                      <span style={{fontSize:20}}>🔴</span><span>T-Money</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-              {res.livraison&&<div style={{background:res.livraisonStatut==="pending"?"#1A0D3D":"#0D1F6E",borderRadius:10,padding:"10px",marginTop:10,border:`1px solid ${res.livraisonStatut==="pending"?"#A855F7":BLU2}40`}}><p style={{color:res.livraisonStatut==="pending"?"#A855F7":CYAN,fontWeight:700,fontSize:13}}>{res.livraisonStatut==="pending"?"⏳ Livraison en attente":"✅ Livraison confirmée"}</p></div>}
-              {res.statut==="Prêt"&&!res.livraison&&!sent&&(
-                <div style={{marginTop:12}}>
-                  <div style={{background:"#0D1F6E",borderRadius:10,padding:"10px",textAlign:"center",border:`1px solid ${BLU2}40`,marginBottom:10}}><p style={{color:CYAN,fontWeight:700}}>🎉 Votre linge est prêt !</p></div>
-                  <button onClick={()=>setShowLiv(!showLiv)} style={{width:"100%",background:"#1A0D3D",border:"1px solid #A855F740",borderRadius:12,padding:"12px",color:"#A855F7",fontWeight:700,fontSize:14,cursor:"pointer"}}>🛵 Demander la livraison</button>
-                </div>
-              )}
-              {res.statut==="Récupéré"&&<EvaluationBlock commande={res} setCommandes={setCommandes} upsertCmd={upsertCmd} />}
-              {sent&&<div style={{marginTop:10,background:"#0D2A3D",borderRadius:10,padding:"12px",border:`1px solid ${CYAN}40`,textAlign:"center"}}><p style={{color:CYAN,fontWeight:700}}>✅ Demande envoyée !</p></div>}
+              {/* ── TIMELINE ── */}
+              <div style={{background:CARD,borderRadius:20,padding:20,marginBottom:14,border:`1px solid ${BDR}`}}>
+                <p style={{fontWeight:700,fontSize:13,marginBottom:16,letterSpacing:1,color:"#8892B0",textTransform:"uppercase"}}>Suivi de votre commande</p>
+                {(()=>{
+                  const etapes=[
+                    {id:"depose",   label:"Linge déposé",      icon:"📥", desc:"Votre linge a bien été reçu"},
+                    {id:"traitement",label:"En traitement",    icon:"⚙️", desc:res.dureeEstimee?"Durée estimée : "+res.dureeEstimee:"Traitement en cours"},
+                    {id:"pret",     label:"Prêt à récupérer", icon:"🎉", desc:"Votre linge est propre et prêt"},
+                    {id:"recupere", label:"Récupéré",          icon:"✅", desc:"Merci de votre confiance !"},
+                  ];
+                  const statutIdx={"En cours":1,"Prêt":2,"Récupéré":3};
+                  const current=statutIdx[res.statut]??1;
+                  return etapes.map((e,idx)=>{
+                    const done=idx<current;
+                    const active=idx===current;
+                    const future=idx>current;
+                    return (
+                      <div key={e.id} style={{display:"flex",gap:14,marginBottom:idx<etapes.length-1?0:0}}>
+                        {/* Ligne verticale + cercle */}
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",width:36,flexShrink:0}}>
+                          <div style={{
+                            width:36,height:36,borderRadius:"50%",
+                            background:done?"linear-gradient(135deg,#4ADE80,#22C55E)":active?`linear-gradient(135deg,${BLU},${BLU2})`:"rgba(255,255,255,0.05)",
+                            border:`2px solid ${done?"#4ADE80":active?CYAN:"rgba(255,255,255,0.1)"}`,
+                            display:"flex",alignItems:"center",justifyContent:"center",
+                            fontSize:16,
+                            boxShadow:active?`0 0 16px ${CYAN}60`:"none",
+                            transition:"all 0.4s ease",
+                          }}>
+                            {done?"✓":active?<span style={{animation:"pulse 1.5s infinite"}}>{e.icon}</span>:e.icon}
+                          </div>
+                          {idx<etapes.length-1&&(
+                            <div style={{width:2,flex:1,minHeight:28,background:done?"#4ADE80":"rgba(255,255,255,0.08)",marginTop:4,marginBottom:4,borderRadius:1}} />
+                          )}
+                        </div>
+                        {/* Contenu */}
+                        <div style={{flex:1,paddingBottom:idx<etapes.length-1?16:0}}>
+                          <p style={{fontWeight:700,fontSize:14,color:done?"#4ADE80":active?"#F8FAFF":future?"#4A5568":"#F8FAFF",marginBottom:2}}>{e.label}</p>
+                          <p style={{fontSize:12,color:future?"#2D3748":"#8892B0"}}>{e.desc}</p>
+                          {/* Temps restant sur étape active */}
+                          {active&&res.dureeEstimee&&idx===1&&(()=>{
+                            const retrait=res.heureRetrait?new Date(res.heureRetrait).getTime():null;
+                            const restMs=retrait?retrait-Date.now():null;
+                            const restH=restMs?Math.max(0,Math.ceil(restMs/3600000)):null;
+                            const depasse=restMs!==null&&restMs<0;
+                            return (
+                              <div style={{marginTop:8,background:depasse?"#1A0A00":"#0D1A3D",borderRadius:10,padding:"8px 12px",border:`1px solid ${depasse?"#FF6B6B40":BLU2+"40"}`,display:"inline-flex",alignItems:"center",gap:6}}>
+                                <span style={{fontSize:14}}>⏱️</span>
+                                <span style={{fontSize:12,fontWeight:700,color:depasse?"#FF6B6B":CYAN}}>
+                                  {depasse?"En cours de finition...":"Prêt dans ~"+restH+"h"}
+                                </span>
+                              </div>
+                            );
+                          })()}
+                          {/* Paiement sur étape 1 */}
+                          {active&&idx===1&&!res.paiementConfirme&&(
+                            <div style={{marginTop:10}}>
+                              <p style={{fontSize:11,color:"#8892B0",marginBottom:8}}>💳 Payer par mobile money :</p>
+                              <div style={{display:"flex",gap:8}}>
+                                <button onClick={()=>sendWhatsApp(JOKER_FLOOZ,`🃏 *JOKER Laverie*\n\n💳 Paiement Flooz\n\nEnvoyez *${fmt(res.total)} FCFA* au :\n📱 *${JOKER_FLOOZ}*\n\n🎫 Réf: *${res.id}*`)} style={{flex:1,background:"linear-gradient(135deg,#004d20,#006b2b)",border:"1px solid #00A65140",borderRadius:12,padding:"12px 6px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",textAlign:"center"}}>🟢 Flooz</button>
+                                <button onClick={()=>sendWhatsApp(JOKER_TMONEY,`🃏 *JOKER Laverie*\n\n💳 Paiement T-Money\n\nEnvoyez *${fmt(res.total)} FCFA* au :\n📱 *${JOKER_TMONEY}*\n\n🎫 Réf: *${res.id}*`)} style={{flex:1,background:"linear-gradient(135deg,#4d0000,#6b0000)",border:"1px solid #E3061340",borderRadius:12,padding:"12px 6px",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",textAlign:"center"}}>🔴 T-Money</button>
+                              </div>
+                            </div>
+                          )}
+                          {/* Prêt à récupérer */}
+                          {active&&idx===2&&!res.livraison&&!sent&&(
+                            <div style={{marginTop:10}}>
+                              <div style={{background:"linear-gradient(135deg,#0D3B2E,#0D1F6E22)",borderRadius:12,padding:"10px 14px",marginBottom:8,border:`1px solid ${CYAN}40`}}>
+                                <p style={{color:CYAN,fontWeight:700,fontSize:13}}>🎉 Votre linge est prêt !</p>
+                                <p style={{color:"#8892B0",fontSize:11,marginTop:2}}>Venez le récupérer à la laverie</p>
+                              </div>
+                              <button onClick={()=>setShowLiv(!showLiv)} style={{width:"100%",background:"#1A0D3D",border:"1px solid #A855F740",borderRadius:12,padding:"11px",color:"#A855F7",fontWeight:700,fontSize:13,cursor:"pointer"}}>🛵 Demander la livraison</button>
+                            </div>
+                          )}
+                          {/* Récupéré → évaluation */}
+                          {done&&idx===3&&<EvaluationBlock commande={res} setCommandes={setCommandes} upsertCmd={upsertCmd} />}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Paiement confirmé */}
+              {res.paiementConfirme&&<div style={{background:"#0D3B2E",borderRadius:14,padding:"12px 16px",marginBottom:14,border:`1px solid ${CYAN}40`,display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:20}}>✅</span><div><p style={{color:CYAN,fontWeight:700,fontSize:13}}>Paiement confirmé</p><p style={{color:"#8892B0",fontSize:11}}>Merci !</p></div></div>}
+
+              {/* Livraison */}
+              {res.livraison&&<div style={{background:res.livraisonStatut==="pending"?"#1A0D3D":"#0D1F6E",borderRadius:14,padding:"12px 16px",marginBottom:14,border:`1px solid ${res.livraisonStatut==="pending"?"#A855F7":BLU2}40`,display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:20}}>🛵</span><div><p style={{color:res.livraisonStatut==="pending"?"#A855F7":CYAN,fontWeight:700,fontSize:13}}>{res.livraisonStatut==="pending"?"Livraison en attente de confirmation":"Livraison confirmée ✅"}</p></div></div>}
+
+              {sent&&<div style={{background:"#0D2A3D",borderRadius:14,padding:"12px 16px",marginBottom:14,border:`1px solid ${CYAN}40`,textAlign:"center"}}><p style={{color:CYAN,fontWeight:700}}>✅ Demande de livraison envoyée !</p></div>}
               {showLiv&&(
                 <div style={{marginTop:12,background:DARK,borderRadius:14,padding:16,border:"1px solid rgba(168,85,247,0.3)"}}>
                   <div style={{display:"flex",gap:8,marginBottom:10}}>
