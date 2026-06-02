@@ -1619,16 +1619,17 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
   },[urlTicket,commandes.length]);
 
   // 🔄 Sync temps réel — mettre à jour res quand Firestore change
+  const statutsKey = commandes.map(c=>c.id+":"+c.statut+":"+(c.paiementConfirme?"p":"")).join(",");
   useEffect(()=>{
     if(res){
       const updated=commandes.find(c=>c.id===res.id);
-      if(updated) setRes(updated); // toujours mettre à jour
+      if(updated) setRes({...updated});
     }
     if(resAll){
       const updatedAll=resAll.map(c=>commandes.find(fc=>fc.id===c.id)||c);
-      setResAll(updatedAll);
+      setResAll([...updatedAll]);
     }
-  },[commandes]);
+  },[statutsKey]);
 
   function chercher(){
     const terme=rech.trim().toLowerCase();
@@ -1811,13 +1812,24 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
               <div style={{background:CARD,borderRadius:20,padding:20,marginBottom:14,border:`1px solid ${BDR}`}}>
                 <p style={{fontWeight:700,fontSize:13,marginBottom:16,letterSpacing:1,color:"#8892B0",textTransform:"uppercase"}}>Suivi de votre commande</p>
                 {(()=>{
-                  const etapes=[
-                    {id:"depose",    label:"Linge déposé",      icon:"📥", desc:"Reçu le "+res.date+(res.heureDepot?" à "+res.heureDepot:"")},
-                    {id:"traitement",label:"En traitement",     icon:"⚙️", desc:res.dureeEstimee?"Durée estimée : "+res.dureeEstimee:"Traitement en cours"},
-                    {id:"pret",      label:"Prêt à récupérer",  icon:"🎉", desc:res.statut==="Prêt"||res.statut==="Récupéré"?"Votre linge est propre !":"En attente"},
-                    {id:"recupere",  label:"Récupéré",          icon:"✅", desc:res.statut==="Récupéré"?"Merci de votre confiance !":"En attente de récupération"},
+                  // Timeline adaptée selon type (ramassage livreur ou dépôt direct)
+                  const isRamassage = res.livraison==="ramassage"||res.livraison==="les-deux";
+                  const etapes = isRamassage ? [
+                    {id:"demande",    label:"Demande envoyée",    icon:"📲", desc:"Votre demande a été reçue"},
+                    {id:"livreur",    label:"Livreur en route",   icon:"🛵", desc:res.livreurNom?"Livreur : "+res.livreurNom:"En attente d&apos;un livreur"},
+                    {id:"depose",     label:"Linge déposé",       icon:"📦", desc:"Votre linge a été récupéré par le livreur"},
+                    {id:"traitement", label:"En traitement",      icon:"⚙️", desc:res.dureeEstimee?"Durée estimée : "+res.dureeEstimee:"Traitement en cours"},
+                    {id:"pret",       label:"Prêt — livraison",   icon:"🎉", desc:"Votre linge propre est en route vers vous"},
+                    {id:"recupere",   label:"Livré",              icon:"✅", desc:"Linge remis. Merci !"},
+                  ] : [
+                    {id:"depose",     label:"Linge déposé",       icon:"📥", desc:"Reçu le "+res.date+(res.heureDepot?" à "+res.heureDepot:"")},
+                    {id:"traitement", label:"En traitement",      icon:"⚙️", desc:res.dureeEstimee?"Durée estimée : "+res.dureeEstimee:"Traitement en cours"},
+                    {id:"pret",       label:"Prêt à récupérer",   icon:"🎉", desc:res.statut==="Prêt"||res.statut==="Récupéré"?"Votre linge est propre !":"En attente"},
+                    {id:"recupere",   label:"Récupéré",           icon:"✅", desc:res.statut==="Récupéré"?"Merci de votre confiance !":"En attente de récupération"},
                   ];
-                  const statutIdx={"En cours":1,"Prêt":2,"Récupéré":3};
+                  const statutIdx = isRamassage
+                    ? {"En cours":2,"Prêt":4,"Récupéré":5}
+                    : {"En cours":1,"Prêt":2,"Récupéré":3};
                   const current=statutIdx[res.statut]??1;
                   return etapes.map((e,idx)=>{
                     const done=idx<current;
