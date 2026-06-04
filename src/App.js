@@ -61,7 +61,10 @@ const LEVEL_SEUILS = [
 function genId()  { return "JK-"+String(Math.floor(Math.random()*900)+100); }
 function fmt(n)   { return Number(n).toLocaleString("fr-FR"); }
 function getLevel(pts) { return LEVEL_SEUILS.find(l=>pts>=l.min&&pts<=l.max)||LEVEL_SEUILS[0]; }
-function calcTotal(poids,tarif,livraison,fraisLivOverride){ return Math.round(parseFloat(poids)*tarif)+(livraison?(fraisLivOverride||LIVRAISON_TARIF_DEFAULT):0); }
+function calcTotal(poids,tarif,livraison,fraisLivOverride,type="kg",qte=1){
+  const base = type==="unite" ? Math.round(tarif*parseInt(qte||1)) : Math.round(parseFloat(poids)*tarif);
+  return base+(livraison?(fraisLivOverride||LIVRAISON_TARIF_DEFAULT):0);
+}
 function todayStr(){ return new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"short"}); }
 
 function sendWhatsApp(tel,msg){
@@ -411,35 +414,90 @@ function GestionPaiements({ paiementConfig, savePaiementConfig }){
 
 function GestionTarifs({ tarifs,setTarifs }){
   const [newLabel,setNewLabel]=useState("");
-  const [newPrix,setNewPrix]=useState("");
+  const [newPrix, setNewPrix] =useState("");
+  const [newType, setNewType] =useState("kg");   // "kg" | "unite"
   const [msg,setMsg]=useState("");
   function flash(m){setMsg(m);setTimeout(()=>setMsg(""),2000);}
   function updatePrix(id,val){setTarifs(p=>p.map(t=>t.id===id?{...t,prix:parseInt(val)||t.prix}:t));}
   function updateLabel(id,val){setTarifs(p=>p.map(t=>t.id===id?{...t,label:val}:t));}
-  function addTarif(){if(!newLabel||!newPrix)return;setTarifs(p=>[...p,{id:Date.now(),label:newLabel,prix:parseInt(newPrix)}]);setNewLabel("");setNewPrix("");flash("✅ Tarif ajouté !");}
+  function updateType(id,type){setTarifs(p=>p.map(t=>t.id===id?{...t,type}:t));}
+  function addTarif(){
+    if(!newLabel||!newPrix)return;
+    setTarifs(p=>[...p,{id:Date.now(),label:newLabel,prix:parseInt(newPrix),type:newType}]);
+    setNewLabel("");setNewPrix("");setNewType("kg");flash("✅ Tarif ajouté !");
+  }
   function removeTarif(id){setTarifs(p=>p.filter(t=>t.id!==id));}
+
+  const typeStyle=(active)=>({
+    flex:1,background:active?`${BLU}40`:DARK,
+    border:`2px solid ${active?BLU2:BDR}`,
+    borderRadius:10,padding:"9px 4px",
+    color:active?BLU2:"#8892B0",fontWeight:700,fontSize:12,cursor:"pointer",
+  });
+
   return (
     <div style={{padding:"20px 20px 0",animation:"fadeIn 0.4s ease"}}>
       <h2 style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,letterSpacing:2,marginBottom:14}}>Tarifs</h2>
       {msg&&<div style={{background:"#0D3B2E",borderRadius:12,padding:"10px 16px",marginBottom:14,border:`1px solid ${CYAN}40`}}><p style={{color:CYAN,fontWeight:700}}>{msg}</p></div>}
-      {tarifs.map(t=>(
-        <div key={t.id} style={{background:CARD,borderRadius:18,padding:16,marginBottom:12,border:`1px solid ${BDR}`}}>
-          <div style={{display:"flex",gap:10,marginBottom:10}}>
-            <input value={t.label} onChange={e=>updateLabel(t.id,e.target.value)} style={{flex:1,background:DARK,border:`1px solid ${BDR}`,borderRadius:10,padding:"10px 12px",color:"#F8FAFF",fontSize:14,outline:"none"}} />
-            <button onClick={()=>removeTarif(t.id)} style={{background:"none",border:"none",color:"#FF4444",fontSize:18,cursor:"pointer"}}>🗑️</button>
+
+      {tarifs.map(t=>{
+        const isKg=(t.type||"kg")==="kg";
+        return (
+          <div key={t.id} style={{background:CARD,borderRadius:18,padding:16,marginBottom:12,border:`1px solid ${isKg?BDR:"rgba(168,85,247,0.25)"}`}}>
+            {/* Nom + suppression */}
+            <div style={{display:"flex",gap:10,marginBottom:10}}>
+              <input value={t.label} onChange={e=>updateLabel(t.id,e.target.value)}
+                style={{flex:1,background:DARK,border:`1px solid ${BDR}`,borderRadius:10,padding:"10px 12px",color:"#F8FAFF",fontSize:14,outline:"none"}} />
+              <button onClick={()=>removeTarif(t.id)} style={{background:"none",border:"none",color:"#FF4444",fontSize:18,cursor:"pointer"}}>🗑️</button>
+            </div>
+
+            {/* Toggle kg / unité */}
+            <div style={{display:"flex",gap:8,marginBottom:10}}>
+              <button onClick={()=>updateType(t.id,"kg")}    style={typeStyle(isKg)}>⚖️ Au kilo</button>
+              <button onClick={()=>updateType(t.id,"unite")} style={typeStyle(!isKg)}>👕 À l'unité</button>
+            </div>
+
+            {/* Badge type */}
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+              <span style={{fontSize:11,background:isKg?`${CYAN}18`:"rgba(168,85,247,0.15)",color:isKg?CYAN:"#A855F7",borderRadius:99,padding:"3px 12px",fontWeight:700}}>
+                {isKg?"Prix par kg":"Prix fixe / vêtement"}
+              </span>
+            </div>
+
+            {/* Prix */}
+            <input type="number" value={t.prix} onChange={e=>updatePrix(t.id,e.target.value)}
+              style={{width:"100%",background:DARK,border:`1px solid ${isKg?BLU2:"#A855F7"}`,borderRadius:10,padding:"12px",color:isKg?CYAN:"#A855F7",fontSize:22,fontWeight:700,outline:"none",textAlign:"center"}} />
+            <p style={{textAlign:"center",fontSize:11,color:"#8892B0",marginTop:6}}>
+              {isKg?`${fmt(t.prix)} FCFA / kg`:`${fmt(t.prix)} FCFA / pièce`}
+            </p>
+
+            {/* Raccourcis ±  */}
+            <div style={{display:"flex",gap:8,marginTop:8}}>
+              {[-100,-50,+50,+100].map(d=>(
+                <button key={d} onClick={()=>updatePrix(t.id,t.prix+d)}
+                  style={{flex:1,background:d<0?"#1A0A0A":"#0D1F6E",border:`1px solid ${d<0?"#FF444330":BLU2+"40"}`,borderRadius:10,padding:"8px 4px",color:d<0?"#FF6B6B":CYAN,fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                  {d>0?"+":""}{d}
+                </button>
+              ))}
+            </div>
           </div>
-          <input type="number" value={t.prix} onChange={e=>updatePrix(t.id,e.target.value)} style={{width:"100%",background:DARK,border:`1px solid ${BLU2}`,borderRadius:10,padding:"12px",color:CYAN,fontSize:22,fontWeight:700,outline:"none",textAlign:"center"}} />
-          <div style={{display:"flex",gap:8,marginTop:10}}>
-            {[-100,-50,+50,+100].map(d=>(
-              <button key={d} onClick={()=>updatePrix(t.id,t.prix+d)} style={{flex:1,background:d<0?"#1A0A0A":"#0D1F6E",border:`1px solid ${d<0?"#FF444330":BLU2+"40"}`,borderRadius:10,padding:"8px 4px",color:d<0?"#FF6B6B":CYAN,fontSize:12,fontWeight:700,cursor:"pointer"}}>{d>0?"+":""}{d}</button>
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
+
       <STitle text="Ajouter un tarif" />
       <div style={{background:CARD,borderRadius:18,padding:16,border:`1px solid ${BDR}`,marginBottom:14}}>
-        <input value={newLabel} onChange={e=>setNewLabel(e.target.value)} placeholder="Nom du service" style={{width:"100%",background:DARK,border:`1px solid ${BDR}`,borderRadius:12,padding:"12px 14px",color:"#F8FAFF",fontSize:14,outline:"none",marginBottom:10}} />
-        <input type="number" value={newPrix} onChange={e=>setNewPrix(e.target.value)} placeholder="Prix FCFA/kg" style={{width:"100%",background:DARK,border:`1px solid ${BDR}`,borderRadius:12,padding:"12px",color:CYAN,fontSize:18,fontWeight:700,outline:"none",textAlign:"center",marginBottom:12}} />
+        <input value={newLabel} onChange={e=>setNewLabel(e.target.value)} placeholder="Nom du service"
+          style={{width:"100%",background:DARK,border:`1px solid ${BDR}`,borderRadius:12,padding:"12px 14px",color:"#F8FAFF",fontSize:14,outline:"none",marginBottom:10}} />
+
+        {/* Choix type pour le nouveau tarif */}
+        <div style={{display:"flex",gap:8,marginBottom:10}}>
+          <button onClick={()=>setNewType("kg")}    style={typeStyle(newType==="kg")}>⚖️ Au kilo</button>
+          <button onClick={()=>setNewType("unite")} style={typeStyle(newType==="unite")}>👕 À l'unité</button>
+        </div>
+
+        <input type="number" value={newPrix} onChange={e=>setNewPrix(e.target.value)}
+          placeholder={newType==="kg"?"Prix FCFA/kg":"Prix FCFA/pièce"}
+          style={{width:"100%",background:DARK,border:`1px solid ${newType==="kg"?BLU2:"#A855F7"}`,borderRadius:12,padding:"12px",color:newType==="kg"?CYAN:"#A855F7",fontSize:18,fontWeight:700,outline:"none",textAlign:"center",marginBottom:12}} />
         <Btn label="➕ Ajouter" onClick={addTarif} disabled={!newLabel||!newPrix} />
       </div>
     </div>
@@ -1453,10 +1511,16 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
   const [loading, setLoading]= useState(false);
   const [tarifId, setTarifId]= useState(1);
   const [poids,   setPoids]  = useState("");
+  const [qte,     setQte]    = useState("1");
 
   const tarifsDisp = tarifs&&tarifs.length>0 ? tarifs : TARIFS_INIT;
   const tarifSel = tarifsDisp.find(t=>t.id===tarifId)||tarifsDisp[0];
-  const sousTotal = poids&&tarifSel ? Math.round(parseFloat(poids)*tarifSel.prix) : 0;
+  const isKg = (tarifSel?.type||"kg")==="kg";
+  const sousTotal = tarifSel
+    ? isKg
+      ? (poids ? Math.round(parseFloat(poids)*tarifSel.prix) : 0)
+      : Math.round(parseInt(qte||1)*tarifSel.prix)
+    : 0;
   const totalEst = sousTotal + 500; // +500 frais ramassage
 
   function envoyerGeo(){
@@ -1482,12 +1546,13 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
     const codeClient=existingCli?.codeClient||("CLI-"+nom.trim().toUpperCase().slice(0,3)+(tel.replace(/[^0-9]/g,"")||"0000").slice(-4));
     const demande={
       id:demandeId, client:nom.trim(), tel:tel.trim(), adresse:adr.trim(),
-      poids:parseFloat(poids)||0, tarifId:tarifSel.id, tarif:tarifSel.prix,
+      poids:isKg?(parseFloat(poids)||0):0, qte:isKg?1:(parseInt(qte)||1),
+      tarifId:tarifSel.id, tarif:tarifSel.prix, tarifType:tarifSel.type||"kg",
       total:sousTotal, points:Math.floor(sousTotal/100),
       statut:"En cours", date:todayStr(), paiement:"especes",
       livraison:"depot", livraisonStatut:"pending",
       livreurNom:null, livreurTel:null, paiementConfirme:false, codeClient,
-      fraisLiv:500, poidsStatut:"estimated",
+      fraisLiv:500, poidsStatut:isKg?"estimated":"confirmed",
     };
     // Sauvegarder directement dans Firebase
     if(upsertCmd){
@@ -1505,12 +1570,13 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
       }
     }
     // WhatsApp gérant
-    const msg=`🧺 *DEMANDE RAMASSAGE*%0A%0A🎫 ${demandeId}%0A👤 ${nom.trim()}%0A📞 ${tel.trim()}%0A📍 ${adr}%0A%0A👕 Service : ${tarifSel.label}%0A⚖️ Poids estimé : ${poids||"?"}kg%0A💰 Montant estimé : ${fmt(totalEst)} FCFA%0A%0A🔑 Code client : ${codeClient}`;
+    const detailQte = isKg ? `⚖️ Poids estimé : ${poids||"?"}kg` : `👕 Quantité : ${qte} pièce(s)`;
+    const msg=`🧺 *DEMANDE RAMASSAGE*%0A%0A🎫 ${demandeId}%0A👤 ${nom.trim()}%0A📞 ${tel.trim()}%0A📍 ${adr}%0A%0A🧺 Service : ${tarifSel.label}%0A${detailQte}%0A💰 Montant estimé : ${fmt(totalEst)} FCFA%0A%0A🔑 Code client : ${codeClient}`;
     sendWhatsApp("22879621085", msg);
     // WhatsApp client avec son code
     if(tel.trim()) sendWhatsApp(tel.trim(), `🃏 *JOKER Laverie & Service*%0A%0A✅ Demande de ramassage enregistrée !%0A%0A🎫 N° : ${demandeId}%0A🔑 Votre code client : *${codeClient}*%0A%0AConservez ce code pour suivre vos commandes dans notre appli.%0A%0A📱 joker-laverie.vercel.app`);
     setSent(true); setShow(false);
-    setNom(""); setTel(""); setAdr(""); setPoids("");
+    setNom(""); setTel(""); setAdr(""); setPoids(""); setQte("1");
   }
 
   if(sent) return (
@@ -1543,24 +1609,49 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
           {/* Choix du service */}
           <p style={{fontSize:11,color:"#8892B0",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Service souhaité</p>
           <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
-            {tarifsDisp.map(t=>(
-              <button key={t.id} onClick={()=>setTarifId(t.id)} style={{background:tarifId===t.id?`${BLU}40`:DARK,border:`1px solid ${tarifId===t.id?BLU2:BDR}`,borderRadius:12,padding:"10px 14px",color:tarifId===t.id?BLU2:"#8892B0",fontWeight:tarifId===t.id?700:400,fontSize:13,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span>{t.label}</span>
-                <span style={{color:CYAN,fontWeight:700}}>{fmt(t.prix)} F/kg</span>
-              </button>
-            ))}
+            {tarifsDisp.map(t=>{
+              const tKg=(t.type||"kg")==="kg";
+              return (
+                <button key={t.id} onClick={()=>{setTarifId(t.id);setQte("1");setPoids("");}}
+                  style={{background:tarifId===t.id?`${tKg?BLU:"#6B21A8"}40`:DARK,border:`2px solid ${tarifId===t.id?(tKg?BLU2:"#A855F7"):BDR}`,borderRadius:12,padding:"10px 14px",color:tarifId===t.id?(tKg?BLU2:"#A855F7"):"#8892B0",fontWeight:tarifId===t.id?700:400,fontSize:13,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span>{tKg?"⚖️":"👕"}</span>
+                    <span>{t.label}</span>
+                  </div>
+                  <span style={{color:tKg?CYAN:"#A855F7",fontWeight:700}}>{fmt(t.prix)} F/{tKg?"kg":"pièce"}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Poids estimé */}
-          <p style={{fontSize:11,color:"#8892B0",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Poids estimé (kg)</p>
-          <input value={poids} onChange={e=>setPoids(e.target.value)} placeholder="ex: 3.5" type="number" step="0.5"
-            style={{width:"100%",background:CARD,border:`1px solid ${BDR}`,borderRadius:12,padding:"11px",color:"#F8FAFF",fontSize:14,outline:"none",marginBottom:10}} />
+          {/* Poids ou quantité selon le type de tarif */}
+          {isKg ? (
+            <>
+              <p style={{fontSize:11,color:"#8892B0",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>⚖️ Poids estimé (kg)</p>
+              <input value={poids} onChange={e=>setPoids(e.target.value)} placeholder="ex: 3.5" type="number" step="0.5"
+                style={{width:"100%",background:CARD,border:`1px solid ${BLU2}`,borderRadius:12,padding:"11px",color:CYAN,fontSize:14,outline:"none",marginBottom:4}} />
+              <p style={{fontSize:10,color:"#8892B0",marginBottom:10}}>*Le poids sera pesé et confirmé à l'arrivée</p>
+            </>
+          ) : (
+            <>
+              <p style={{fontSize:11,color:"#8892B0",letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>👕 Nombre de pièces</p>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}> 
+                <button onClick={()=>setQte(q=>String(Math.max(1,parseInt(q||1)-1)))} style={{width:44,height:44,borderRadius:12,background:"#1A0A0A",border:"1px solid #FF444440",color:"#FF6B6B",fontSize:22,fontWeight:700,cursor:"pointer"}}>−</button>
+                <input value={qte} onChange={e=>setQte(e.target.value)} type="number" min="1"
+                  style={{flex:1,background:CARD,border:"2px solid #A855F7",borderRadius:12,padding:"11px",color:"#A855F7",fontSize:22,fontWeight:700,outline:"none",textAlign:"center"}} />
+                <button onClick={()=>setQte(q=>String(parseInt(q||1)+1))} style={{width:44,height:44,borderRadius:12,background:"#0D1F6E",border:`1px solid ${BLU2}40`,color:BLU2,fontSize:22,fontWeight:700,cursor:"pointer"}}>+</button>
+              </div>
+            </>
+          )}
 
           {/* Montant estimé */}
           {sousTotal>0&&(
-            <div style={{background:`${BLU}20`,borderRadius:14,padding:"12px 16px",marginBottom:12,border:`1px solid ${BLU2}40`}}>
+            <div style={{background:isKg?`${BLU}20`:`rgba(168,85,247,0.1)`,borderRadius:14,padding:"12px 16px",marginBottom:12,border:`1px solid ${isKg?BLU2:"#A855F7"}40`}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                <span style={{color:"#8892B0",fontSize:13}}>Lavage ({poids}kg × {fmt(tarifSel.prix)} F)</span>
+                {isKg
+                  ? <span style={{color:"#8892B0",fontSize:13}}>{tarifSel.label} ({poids}kg × {fmt(tarifSel.prix)} F)</span>
+                  : <span style={{color:"#8892B0",fontSize:13}}>{tarifSel.label} ({qte} pièce{parseInt(qte)>1?"s":""} × {fmt(tarifSel.prix)} F)</span>
+                }
                 <span style={{color:"#F8FAFF",fontWeight:700,fontSize:13}}>{fmt(sousTotal)} F</span>
               </div>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
@@ -1571,7 +1662,7 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
                 <span style={{color:"#F8FAFF",fontWeight:700}}>TOTAL ESTIMÉ</span>
                 <span style={{color:CYAN,fontWeight:700,fontSize:18}}>{fmt(totalEst)} F</span>
               </div>
-              <p style={{color:"#8892B0",fontSize:10,marginTop:4}}>*Le poids sera confirmé à l'arrivée</p>
+              {isKg&&<p style={{color:"#8892B0",fontSize:10,marginTop:4}}>*Le poids sera pesé et confirmé à l'arrivée</p>}
             </div>
           )}
 
