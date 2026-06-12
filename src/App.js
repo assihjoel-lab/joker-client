@@ -1785,6 +1785,7 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
 
   function chercher(){
     const terme=rech.trim().toLowerCase();
+    if(!terme) return; // Ne rien faire si le champ est vide
     // Chercher par N° exact d'abord
     const exact=commandes.find(c=>c.id.toLowerCase()===terme);
     if(exact){setRes(exact);setResAll(null);setNotFound(false);setShowLiv(false);setSent(false);return;}
