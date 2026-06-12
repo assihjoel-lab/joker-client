@@ -1785,14 +1785,24 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
 
   function chercher(){
     const terme=rech.trim().toLowerCase();
-    if(!terme) return; // Ne rien faire si le champ est vide
-    // Chercher par N° exact d'abord
+    if(terme.length<3) return; // Minimum 3 caractères requis
+    // 1. Chercher par code client (CLI-XXX) - espace personnel
+    if(terme.startsWith("cli-")){
+      const mine=commandes.filter(c=>(c.codeClient||"").toLowerCase()===terme);
+      if(mine.length>0){setResAll(mine.slice().reverse());setRes(null);setNotFound(false);}
+      else{setResAll(null);setRes(null);setNotFound(true);}
+      setShowLiv(false);setSent(false);return;
+    }
+    // 2. Chercher par N° ticket exact
     const exact=commandes.find(c=>c.id.toLowerCase()===terme);
     if(exact){setRes(exact);setResAll(null);setNotFound(false);setShowLiv(false);setSent(false);return;}
-    // Sinon chercher toutes les commandes du client par nom ou tél
-    const all=commandes.filter(c=>c.client.toLowerCase().includes(terme)||(c.tel&&c.tel.includes(rech.trim())));
-    if(all.length>0){setResAll(all.slice().reverse());setRes(null);setNotFound(false);}
-    else{setResAll(null);setRes(null);setNotFound(true);}
+    // 3. Chercher par numéro de téléphone (au moins 6 chiffres)
+    const telDigits=rech.trim().replace(/[^0-9]/g,"");
+    if(telDigits.length>=6){
+      const byTel=commandes.filter(c=>c.tel&&c.tel.replace(/[^0-9]/g,"").includes(telDigits));
+      if(byTel.length>0){setResAll(byTel.slice().reverse());setRes(null);setNotFound(false);setShowLiv(false);setSent(false);return;}
+    }
+    setResAll(null);setRes(null);setNotFound(true);
     setShowLiv(false);setSent(false);
   }
   function demanderLiv(geoLink){
