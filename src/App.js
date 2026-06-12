@@ -1757,13 +1757,17 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
   useEffect(()=>{
     if(urlTicket&&commandes.length>0){
       const exact=commandes.find(c=>c.id.toLowerCase()===urlTicket.toLowerCase());
-      if(exact){setRes(exact);setResAll(null);setNotFound(false);}
+      if(exact){setRes(exact);setResAll(null);setNotFound(false);setRech(exact.id);}
       else setNotFound(true);
+      // Nettoyer l'URL pour ne pas garder le code en mémoire
+      window.history.replaceState({}, "", window.location.pathname);
     }
     if(urlCode&&commandes.length>0){
       const mine=commandes.filter(c=>(c.codeClient||"").toLowerCase()===urlCode.toLowerCase());
-      if(mine.length>0){setResAll(mine.slice().reverse());setRes(null);setNotFound(false);}
+      if(mine.length>0){setResAll(mine.slice().reverse());setRes(null);setNotFound(false);setRech(urlCode);}
       else setNotFound(true);
+      // Nettoyer l'URL pour ne pas garder le code en mémoire
+      window.history.replaceState({}, "", window.location.pathname);
     }
   },[urlTicket,urlCode,commandes.length]);
 
