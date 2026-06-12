@@ -1502,11 +1502,12 @@ function EvaluationBlock({ commande, setCommandes, upsertCmd }){
 
 
 // ─── RAMASSAGE À DOMICILE ─────────────────────────────────
-function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clients, tarifs }){
+function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clients, tarifs, promos }){
   const [show,    setShow]   = useState(false);
   const [nom,     setNom]    = useState("");
   const [tel,     setTel]    = useState("");
   const [adr,     setAdr]    = useState("");
+  const [codeParrain, setCodeParrain] = useState("");
   const [sent,    setSent]   = useState(false);
   const [loading, setLoading]= useState(false);
   // Panier multi-services : [{tarifId, poids, qte}]
@@ -1552,8 +1553,14 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
     const demandeId="RAM-"+String(Math.floor(Math.random()*9000)+1000);
     const existingCli=(clients||[]).find(cl=>cl.tel===tel.trim()||cl.nom?.toLowerCase()===nom.trim().toLowerCase());
     const codeClient=existingCli?.codeClient||("CLI-"+nom.trim().toUpperCase().slice(0,3)+(tel.replace(/[^0-9]/g,"")||"0000").slice(-4));
+    // Parrainage : valider le code (existe + différent du client lui-même)
+    const codeParrainTrim = codeParrain.trim().toUpperCase();
+    const parrain = codeParrainTrim ? (clients||[]).find(cl=>(cl.codeClient||"").toUpperCase()===codeParrainTrim) : null;
+    const estNouveauClient = !existingCli;
+    const referredBy = (parrain && estNouveauClient) ? parrain.codeClient : null;
+
     const demande={
-      id:demandeId, client:nom.trim(), tel:tel.trim(), adresse:adr.trim(),
+      id:demandeId, client:nom.trim(), tel:tel.trim(), adresse:adr.trim(), referredBy,
       panier: panier.map(s=>({
         tarifId:s.tarifId,
         label: tarifsDisp.find(t=>t.id===s.tarifId)?.label||"",
@@ -1578,11 +1585,12 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
     }
     // Auto-enregistrement client
     if(upsertClient&&nom.trim()){
-      const cmdEntry={id:demande.id,date:demande.date,total:demande.total,poids:demande.poids,statut:demande.statut,service:tarifSel.label};
+      const servicesLabel=panier.map(s=>tarifsDisp.find(t=>t.id===s.tarifId)?.label||"").join(", ");
+      const cmdEntry={id:demande.id,date:demande.date,total:demande.total,poids:demande.poids,statut:demande.statut,service:servicesLabel};
       if(existingCli){
         upsertClient({...existingCli,codeClient,historique:[cmdEntry,...(existingCli.historique||[])],totalDepense:(existingCli.totalDepense||0)+demande.total});
       } else {
-        upsertClient({id:"cli_"+demandeId,nom:nom.trim(),tel:tel.trim(),adresse:adr,notes:"Demande ramassage",points:demande.points,totalDepense:demande.total,historique:[cmdEntry],codeClient});
+        upsertClient({id:"cli_"+demandeId,nom:nom.trim(),tel:tel.trim(),adresse:adr,notes:"Demande ramassage",points:demande.points,totalDepense:demande.total,historique:[cmdEntry],codeClient,referredBy,referralRewarded:false});
       }
     }
     // WhatsApp gérant
@@ -1596,7 +1604,7 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
     // WhatsApp client avec son code
     if(tel.trim()) sendWhatsApp(tel.trim(), `🃏 *JOKER Laverie & Service*%0A%0A✅ Demande de ramassage enregistrée !%0A%0A🎫 N° : ${demandeId}%0A🔑 Votre code client : *${codeClient}*%0A%0AConservez ce code pour suivre vos commandes dans notre appli.%0A%0A📱 joker-laverie.vercel.app`);
     setSent(true); setShow(false);
-    setNom(""); setTel(""); setAdr(""); setPanier([]);
+    setNom(""); setTel(""); setAdr(""); setPanier([]); setCodeParrain("");
   }
 
   if(sent) return (
@@ -1707,6 +1715,18 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
           {adr&&adr.includes("maps.google")&&(
             <p style={{color:"#25D366",fontSize:11,marginBottom:8,textAlign:"center"}}>✅ Position GPS détectée</p>
           )}
+
+          {/* Code de parrainage */}
+          <div style={{marginBottom:10}}>
+            <input value={codeParrain} onChange={e=>setCodeParrain(e.target.value.toUpperCase())} placeholder="🎁 Code de parrainage (optionnel)"
+              style={{width:"100%",background:CARD,border:`1px solid rgba(255,184,0,0.3)`,borderRadius:12,padding:"11px",color:"#FFB800",fontSize:13,outline:"none",textTransform:"uppercase"}} />
+            {codeParrain&&(
+              <p style={{fontSize:11,color:(clients||[]).some(cl=>(cl.codeClient||"").toUpperCase()===codeParrain.trim())?"#4ADE80":"#FF6B6B",marginTop:4}}>
+                {(clients||[]).some(cl=>(cl.codeClient||"").toUpperCase()===codeParrain.trim())?"✅ Code valide — vous et votre parrain recevrez +50 points après votre 1ère commande payée":"❌ Code introuvable"}
+              </p>
+            )}
+          </div>
+
           <button onClick={envoyer} disabled={!nom||!tel||!adr||panier.length===0||sousTotal===0} style={{width:"100%",background:nom&&tel&&adr&&panier.length>0&&sousTotal>0?"linear-gradient(135deg,#25D366,#128C7E)":"#1A2240",border:"none",borderRadius:14,padding:"13px",color:"#fff",fontWeight:700,fontSize:15,cursor:nom&&tel&&adr&&panier.length>0?"pointer":"default"}}>
             📲 Envoyer la demande
           </button>
@@ -1718,7 +1738,7 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
 
 
 // ─── ESPACE CLIENT ────────────────────────────────────────
-function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,friperie,rewards,tarifs }){
+function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,friperie,rewards,tarifs,promos }){
   const [tab,setTab]=useState("suivi");
   // Pré-remplir depuis URL ?ticket=XXX (scan QR code)
   const urlTicket = new URLSearchParams(window.location.search).get("ticket")||"";
@@ -1822,7 +1842,7 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
 
       {tab==="suivi"&&(
         <div style={{padding:"16px 16px 0"}}>
-          <RamassageBlock commandes={commandes} setCommandes={setCommandes} upsertCmd={upsertCmd} upsertClient={upsertClient} clients={clients} tarifs={tarifs} />
+          <RamassageBlock commandes={commandes} setCommandes={setCommandes} upsertCmd={upsertCmd} upsertClient={upsertClient} clients={clients} tarifs={tarifs} promos={promos} />
 
           {/* Barre de recherche */}
           <div style={{display:"flex",gap:8,marginBottom:14}}>
@@ -1839,6 +1859,27 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
           {/* Page d'accueil — affichée quand pas de résultat */}
           {!res&&!resAll&&!notFound&&(
             <div>
+              {/* Promotions actives */}
+              {(()=>{
+                const aujourd=todayStr();
+                const promosActives=(promos||[]).filter(p=>p.actif&&(!p.dateDebut||p.dateDebut<=aujourd)&&(!p.dateFin||p.dateFin>=aujourd));
+                if(promosActives.length===0) return null;
+                return (
+                  <div style={{marginBottom:16}}>
+                    {promosActives.map(p=>(
+                      <div key={p.id} style={{background:"linear-gradient(135deg,#3D1A6B,#A855F7)",borderRadius:18,padding:"16px 18px",marginBottom:10,boxShadow:"0 4px 20px rgba(168,85,247,0.3)",display:"flex",alignItems:"center",gap:14}}>
+                        <div style={{fontSize:32}}>🎁</div>
+                        <div style={{flex:1}}>
+                          <p style={{fontWeight:800,fontSize:15,color:"#fff",marginBottom:2}}>{p.label}</p>
+                          <p style={{color:"#F0E8FF",fontSize:12}}>-{p.remise}% {p.cible&&p.cible!=="tous"?`sur ${p.cible}`:"sur tous nos services"}</p>
+                        </div>
+                        <div style={{background:"rgba(255,255,255,0.2)",borderRadius:12,padding:"6px 12px",fontWeight:900,fontSize:18,color:"#fff",flexShrink:0}}>-{p.remise}%</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {/* Message de bienvenue */}
               <div style={{background:`linear-gradient(135deg,#0D1F6E22,${CARD})`,borderRadius:20,padding:"20px 18px",marginBottom:16,border:`1px solid ${BLU2}30`,textAlign:"center"}}>
                 <p style={{fontSize:28,marginBottom:8}}>👋</p>
@@ -1879,6 +1920,31 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
               </div>
             </div>
           )}
+          {/* ── Programme de parrainage ── */}
+          {(res||resAll)&&(()=>{
+            const c0=res||resAll?.[0];
+            const codeClient=c0?.codeClient;
+            if(!codeClient) return null;
+            return (
+              <div style={{background:"linear-gradient(135deg,#3D1A6B,#1A3EBD)",borderRadius:18,padding:"16px 18px",marginBottom:14,border:"1px solid rgba(168,85,247,0.3)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                  <span style={{fontSize:24}}>🎁</span>
+                  <div>
+                    <p style={{fontWeight:800,fontSize:14,color:"#fff"}}>Parrainez vos amis</p>
+                    <p style={{fontSize:11,color:"#E0D5FF"}}>+50 points pour vous et votre ami après sa 1ère commande payée</p>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(0,0,0,0.25)",borderRadius:12,padding:"10px 14px",marginBottom:8}}>
+                  <span style={{flex:1,fontFamily:"'Bebas Neue',cursive",fontSize:18,letterSpacing:2,color:"#fff"}}>{codeClient}</span>
+                  <button onClick={()=>{navigator.clipboard?.writeText(codeClient);}} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"6px 10px",color:"#fff",fontSize:12,cursor:"pointer",fontWeight:700}}>📋 Copier</button>
+                </div>
+                <button onClick={()=>sendWhatsApp("", `🃏 *JOKER Laverie & Service*%0A%0A👋 Salut ! Je t'invite à essayer JOKER Laverie, le pressing nouvelle génération à Lomé 🧺%0A%0AUtilise mon code de parrainage *${codeClient}* lors de ta 1ère demande de ramassage et on gagne tous les deux +50 points fidélité ! 🎁%0A%0A📱 joker-client.vercel.app`)} style={{width:"100%",background:"linear-gradient(135deg,#0D3B1A,#006b2b)",border:"1px solid #25D36640",borderRadius:12,padding:"11px",color:"#25D366",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  💬 Partager mon code sur WhatsApp
+                </button>
+              </div>
+            );
+          })()}
+
           {resAll&&(
             <div style={{marginBottom:16}}>
               <p style={{fontSize:13,color:"#8892B0",marginBottom:10}}>
@@ -2101,6 +2167,7 @@ export default function App(){
   const [rewards,    ,  , rewReady]  = useFireDoc("config","rewards",   []);
   const [tarifs,     ,  , tarReady]  = useFireDoc("config","tarifs",    TARIFS_INIT);
   const [clients, upsertClient, , cliReady] = useFireCollection("clients", []);
+  const [promos, , , promoReady] = useFireCollection("promos", []);
 
   // Afficher apres 1.5s max
   const [showApp, setShowApp] = useState(false);
@@ -2134,6 +2201,7 @@ export default function App(){
         friperie={friperie}
         rewards={rewards}
         tarifs={tarifs}
+        promos={promos}
       />
     </div>
   );
