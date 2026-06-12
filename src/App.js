@@ -1722,7 +1722,8 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
   const [tab,setTab]=useState("suivi");
   // Pré-remplir depuis URL ?ticket=XXX (scan QR code)
   const urlTicket = new URLSearchParams(window.location.search).get("ticket")||"";
-  const [rech,setRech]=useState(urlTicket);
+  const urlCode   = new URLSearchParams(window.location.search).get("code")||"";
+  const [rech,setRech]=useState(urlTicket||urlCode);
   const [res,setRes]=useState(null);
   const [resAll,setResAll]=useState(null);
   const [notFound,setNotFound]=useState(false);
@@ -1739,7 +1740,12 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
       if(exact){setRes(exact);setResAll(null);setNotFound(false);}
       else setNotFound(true);
     }
-  },[urlTicket,commandes.length]);
+    if(urlCode&&commandes.length>0){
+      const mine=commandes.filter(c=>(c.codeClient||"").toLowerCase()===urlCode.toLowerCase());
+      if(mine.length>0){setResAll(mine.slice().reverse());setRes(null);setNotFound(false);}
+      else setNotFound(true);
+    }
+  },[urlTicket,urlCode,commandes.length]);
 
   // 🔄 Sync temps réel — mettre à jour res quand Firestore change
   useEffect(()=>{
