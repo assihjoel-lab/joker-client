@@ -1738,6 +1738,44 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
 
 
 // ─── ESPACE CLIENT ────────────────────────────────────────
+function ServiceCard({ t }){
+  const [open,setOpen]=useState(false);
+  const [ajouterAutre,setAjouterAutre]=useState(false);
+  const uniteLabel=t.unite==="unite"?"par pièce/unité":"par kg";
+  return (
+    <div style={{marginBottom:10}}>
+      <div onClick={()=>{setOpen(o=>!o);setAjouterAutre(false);}} style={{background:open?`linear-gradient(135deg,${BLU}30,${BLU2}15)`:CARD,borderRadius:open?"18px 18px 0 0":18,padding:"16px 18px",border:`1px solid ${open?BLU2:BDR}`,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <p style={{fontWeight:700,fontSize:15,color:"#F8FAFF"}}>{t.label}</p>
+          <p style={{fontSize:13,color:BLU2,fontWeight:700}}>{fmt(t.prix)} FCFA/{uniteLabel.replace("par ","")}</p>
+        </div>
+        <span style={{color:BLU2,fontSize:20,fontWeight:700,transform:open?"rotate(180deg)":"none",transition:"0.2s"}}>⌄</span>
+      </div>
+      {open&&(
+        <div style={{background:"#0A1628",borderRadius:"0 0 18px 18px",padding:16,border:`1px solid ${BLU2}`,borderTop:"none",animation:"fadeIn 0.25s ease"}}>
+          {t.description&&<p style={{color:"#8892B0",fontSize:13,marginBottom:12,lineHeight:1.5}}>{t.description}</p>}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${BDR}`}}>
+            <span style={{color:"#8892B0",fontSize:12}}>Tarif</span>
+            <span style={{fontWeight:700,color:"#F8FAFF"}}>{fmt(t.prix)} FCFA/{t.unite==="unite"?"unité":"kg"}</span>
+          </div>
+          {!ajouterAutre?(
+            <div style={{marginTop:12}}>
+              <p style={{color:"#4ADE80",fontSize:13,fontWeight:700,marginBottom:10}}>✅ Service sélectionné !</p>
+              <button onClick={(e)=>{e.stopPropagation();setAjouterAutre(true);}} style={{width:"100%",background:`linear-gradient(135deg,${BLU},${BLU2})`,border:"none",borderRadius:12,padding:"11px",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>➕ Ajouter un autre service ?</button>
+              <button onClick={(e)=>{e.stopPropagation();setOpen(false);}} style={{width:"100%",background:CARD,border:`1px solid ${BDR}`,borderRadius:12,padding:"11px",color:"#8892B0",fontWeight:700,fontSize:13,cursor:"pointer",marginTop:8}}>✓ Non, c&apos;est tout</button>
+            </div>
+          ):(
+            <div style={{marginTop:12}}>
+              <p style={{color:CYAN,fontSize:13,marginBottom:8}}>Quel autre service souhaitez-vous ajouter ?</p>
+              <button onClick={(e)=>{e.stopPropagation();setOpen(false);setAjouterAutre(false);}} style={{width:"100%",background:`linear-gradient(135deg,#0D3B2E,${CYAN}30)`,border:`1px solid ${CYAN}40`,borderRadius:12,padding:"11px",color:CYAN,fontWeight:700,fontSize:13,cursor:"pointer"}}>👆 Choisir dans la liste ci-dessus</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,friperie,rewards,tarifs,promos }){
   const [tab,setTab]=useState("suivi");
   // Pré-remplir depuis URL ?ticket=XXX (scan QR code)
@@ -1752,6 +1790,28 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
   const [adresse,setAdresse]=useState("");
   const [tel,setTel]=useState("");
   const [sent,setSent]=useState(false);
+  const [codeInput,setCodeInput]=useState(localStorage.getItem("joker_code")||"");
+  const [monClient,setMonClient]=useState(null);
+  const [codeErr,setCodeErr]=useState(false);
+
+  function rechercherClient(){
+    const code=codeInput.trim().toUpperCase();
+    if(!code) return;
+    const found=(clients||[]).find(c=>
+      (c.codeClient||"").toUpperCase()===code||
+      (c.tel||"").replace(/\D/g,"")===code.replace(/\D/g,"")
+    );
+    if(found){ setMonClient(found); setCodeErr(false); localStorage.setItem("joker_code",codeInput.trim()); }
+    else{ setCodeErr(true); setMonClient(null); }
+  }
+
+  const mesCommandes=monClient
+    ?commandes.filter(c=>
+        c.client?.toLowerCase()===monClient.nom?.toLowerCase()||
+        (c.tel&&c.tel===monClient.tel)||
+        (c.codeClient&&c.codeClient===monClient.codeClient)
+      ).slice().reverse()
+    :[];
 
   // Auto-chercher si ticket dans URL
   useEffect(()=>{
@@ -1847,7 +1907,7 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
 
       {/* ── TABS ── */}
       <div style={{display:"flex",margin:"0",background:"#060D1F",borderBottom:`1px solid ${BDR}`,position:"sticky",top:0,zIndex:40}}>
-        {[{id:"suivi",icon:"📦",l:"Commande"},{id:"fidelite",icon:"🏅",l:"Fidélité"},{id:"friperie",icon:"👗",l:"Friperie"}].map(tb=>(
+        {[{id:"monespace",icon:"👤",l:"Mon Espace"},{id:"suivi",icon:"📦",l:"Commande"},{id:"services",icon:"💲",l:"Services"},{id:"fidelite",icon:"🏅",l:"Fidélité"},{id:"friperie",icon:"👗",l:"Friperie"}].map(tb=>(
           <button key={tb.id} onClick={()=>setTab(tb.id)} style={{flex:1,background:"transparent",border:"none",borderBottom:`3px solid ${tab===tb.id?CYAN:"transparent"}`,padding:"14px 4px",color:tab===tb.id?CYAN:"#8892B0",fontWeight:700,fontSize:11,cursor:"pointer",transition:"all 0.2s",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
             <span style={{fontSize:16}}>{tb.icon}</span>
             <span>{tb.l}</span>
@@ -1855,6 +1915,103 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
         ))}
       </div>
 
+      {tab==="monespace"&&(
+        <div style={{padding:"20px",animation:"fadeIn 0.4s ease"}}>
+          {!monClient?(
+            <div>
+              <div style={{textAlign:"center",marginBottom:24}}>
+                <p style={{fontSize:40,marginBottom:8}}>👤</p>
+                <h2 style={{fontFamily:"'Bebas Neue',cursive",fontSize:24,letterSpacing:2,marginBottom:6}}>Mon Espace</h2>
+                <p style={{color:"#8892B0",fontSize:13}}>Entrez votre code client ou numéro de téléphone pour accéder à votre espace personnel.</p>
+              </div>
+              <input
+                value={codeInput}
+                onChange={e=>setCodeInput(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&rechercherClient()}
+                placeholder="Code client (ex: CLI-JOEL1234) ou téléphone"
+                style={{width:"100%",background:CARD,border:`2px solid ${codeErr?"#FF6B6B":BDR}`,borderRadius:16,padding:"14px 16px",color:"#F8FAFF",fontSize:15,outline:"none",marginBottom:10,boxSizing:"border-box"}}
+              />
+              {codeErr&&<p style={{color:"#FF6B6B",fontSize:13,marginBottom:10}}>❌ Code ou numéro non trouvé. Vérifiez avec la laverie.</p>}
+              <button onClick={rechercherClient} style={{width:"100%",background:`linear-gradient(135deg,${BLU},${BLU2})`,border:"none",borderRadius:16,padding:"14px",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:20}}>🔍 Accéder à mon espace</button>
+              <div style={{background:CARD,borderRadius:14,padding:16,border:`1px solid ${BDR}`}}>
+                <p style={{fontWeight:700,fontSize:13,marginBottom:8,color:BLU2}}>💡 Où trouver mon code ?</p>
+                <p style={{color:"#8892B0",fontSize:12,lineHeight:1.6}}>Votre code client se trouve sur votre ticket de commande (ex: CLI-JOEL1234) ou demandez-le à la laverie.</p>
+              </div>
+            </div>
+          ):(
+            <div>
+              {/* Header profil */}
+              <div style={{background:`linear-gradient(135deg,${BLU}20,${BLU2}10)`,borderRadius:18,padding:20,marginBottom:16,border:`1px solid ${BLU2}30`,display:"flex",alignItems:"center",gap:14}}>
+                <div style={{width:60,height:60,borderRadius:16,background:`linear-gradient(135deg,${BLU},${BLU2})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Bebas Neue',cursive",fontSize:26,color:"#fff",flexShrink:0}}>
+                  {(monClient.nom||"?").charAt(0).toUpperCase()}
+                </div>
+                <div style={{flex:1}}>
+                  <p style={{fontWeight:700,fontSize:18,color:"#F8FAFF"}}>{monClient.nom}</p>
+                  <p style={{fontSize:12,color:"#8892B0"}}>{monClient.tel||""}</p>
+                  <p style={{fontSize:11,color:"#A855F7",marginTop:2}}>🔑 {monClient.codeClient||"—"}</p>
+                </div>
+                <button onClick={()=>{setMonClient(null);localStorage.removeItem("joker_code");}} style={{background:"none",border:`1px solid ${BDR}`,borderRadius:10,padding:"6px 10px",color:"#8892B0",fontSize:12,cursor:"pointer"}}>Déconnecter</button>
+              </div>
+              {/* Stats */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+                {[
+                  {l:"Commandes",v:mesCommandes.length,c:BLU2,i:"📦"},
+                  {l:"Points",v:monClient.points||0,c:"#FFD700",i:"🏅"},
+                  {l:"Total dépensé",v:fmt(mesCommandes.filter(c=>c.paiementConfirme).reduce((s,c)=>s+(c.total||0),0))+"F",c:CYAN,i:"💰"},
+                ].map(s=>(
+                  <div key={s.l} style={{background:CARD,borderRadius:14,padding:"12px 10px",border:`1px solid ${s.c}20`,textAlign:"center"}}>
+                    <p style={{fontSize:18,marginBottom:4}}>{s.i}</p>
+                    <p style={{fontFamily:"'Bebas Neue',cursive",fontSize:18,color:s.c}}>{s.v}</p>
+                    <p style={{fontSize:10,color:"#8892B0"}}>{s.l}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Commandes en cours */}
+              {mesCommandes.filter(c=>c.statut!=="Récupéré").length>0&&(
+                <div style={{marginBottom:14}}>
+                  <p style={{fontWeight:700,fontSize:13,color:CYAN,marginBottom:8}}>⏳ En cours</p>
+                  {mesCommandes.filter(c=>c.statut!=="Récupéré").map(c=>(
+                    <div key={c.id} style={{background:CARD,borderRadius:14,padding:"12px 16px",marginBottom:8,border:`1px solid ${statutColor[c.statut]||BLU2}40`,cursor:"pointer"}} onClick={()=>{setRes(c);setTab("suivi");}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                        <span style={{fontWeight:700,color:BLU2,fontSize:13}}>{c.id}</span>
+                        <Badge statut={c.statut} />
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between"}}>
+                        <span style={{fontSize:12,color:"#8892B0"}}>{c.date}</span>
+                        <span style={{fontSize:13,fontWeight:700,color:"#F8FAFF"}}>{fmt(c.total)} F</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* Historique */}
+              {mesCommandes.filter(c=>c.statut==="Récupéré").length>0&&(
+                <div>
+                  <p style={{fontWeight:700,fontSize:13,color:"#4ADE80",marginBottom:8}}>✅ Historique</p>
+                  {mesCommandes.filter(c=>c.statut==="Récupéré").map(c=>(
+                    <div key={c.id} style={{background:CARD,borderRadius:14,padding:"12px 16px",marginBottom:8,border:`1px solid ${BDR}`,cursor:"pointer"}} onClick={()=>{setRes(c);setTab("suivi");}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                        <span style={{fontWeight:700,color:"#8892B0",fontSize:13}}>{c.id}</span>
+                        <span style={{fontSize:11,color:"#4ADE80",fontWeight:700}}>✅ Récupéré</span>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between"}}>
+                        <span style={{fontSize:12,color:"#8892B0"}}>{c.date}</span>
+                        <span style={{fontSize:13,fontWeight:700,color:"#F8FAFF"}}>{fmt(c.total)} F</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {mesCommandes.length===0&&(
+                <div style={{textAlign:"center",padding:"30px 0"}}>
+                  <p style={{fontSize:32,marginBottom:8}}>📭</p>
+                  <p style={{color:"#8892B0",fontSize:14}}>Aucune commande trouvée.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       {tab==="suivi"&&(
         <div style={{padding:"16px 16px 0"}}>
           <RamassageBlock commandes={commandes} setCommandes={setCommandes} upsertCmd={upsertCmd} upsertClient={upsertClient} clients={clients} tarifs={tarifs} promos={promos} />
@@ -2126,6 +2283,20 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
               )}
             </div>
           )}
+        </div>
+      )}
+      {tab==="services"&&(
+        <div style={{padding:"20px",animation:"fadeIn 0.4s ease"}}>
+          <h2 style={{fontFamily:"'Bebas Neue',cursive",fontSize:26,letterSpacing:2,marginBottom:4}}>Nos Services 💲</h2>
+          <p style={{color:"#8892B0",fontSize:13,marginBottom:20}}>Sélectionnez un service pour voir les détails.</p>
+          {(tarifs&&tarifs.length>0?tarifs:TARIFS_INIT).map(t=>(
+            <ServiceCard key={t.id} t={t} />
+          ))}
+          <div style={{background:CARD,borderRadius:16,padding:16,marginTop:8,border:`1px solid ${BDR}`}}>
+            <p style={{fontWeight:700,fontSize:13,color:BLU2,marginBottom:8}}>📞 Nous contacter</p>
+            <p style={{color:"#8892B0",fontSize:12,marginBottom:12}}>Pour un devis personnalisé ou un service non listé :</p>
+            <button onClick={()=>window.open(`https://wa.me/${JOKER_FLOOZ.replace(/\D/g,"")}?text=${encodeURIComponent("🃏 Bonjour JOKER Laverie ! Je voudrais un renseignement sur vos services.")}`, "_blank")} style={{width:"100%",background:"#0D3B1A",border:"1px solid #25D36640",borderRadius:12,padding:"12px",color:"#25D366",fontWeight:700,fontSize:14,cursor:"pointer"}}>💬 Nous contacter sur WhatsApp</button>
+          </div>
         </div>
       )}
       {tab==="fidelite"&&(
