@@ -1502,11 +1502,11 @@ function EvaluationBlock({ commande, setCommandes, upsertCmd }){
 
 
 // ─── RAMASSAGE À DOMICILE ─────────────────────────────────
-function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clients, tarifs, promos }){
+function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clients, tarifs, promos, monClient }){
   const [show,    setShow]   = useState(false);
-  const [nom,     setNom]    = useState("");
-  const [tel,     setTel]    = useState("");
-  const [adr,     setAdr]    = useState("");
+  const [nom,     setNom]    = useState(monClient?.nom||"");
+  const [tel,     setTel]    = useState(monClient?.tel||"");
+  const [adr,     setAdr]    = useState(monClient?.adresse||"");
   const [codeParrain, setCodeParrain] = useState("");
   const [sent,    setSent]   = useState(false);
   const [loading, setLoading]= useState(false);
@@ -1515,6 +1515,14 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
   const [openTarifId, setOpenTarifId] = useState(null);
 
   const tarifsDisp = tarifs&&tarifs.length>0 ? tarifs : TARIFS_INIT;
+
+  useEffect(()=>{
+    if(monClient){
+      setNom(monClient.nom||"");
+      setTel(monClient.tel||"");
+      setAdr(prev=>prev||monClient.adresse||"");
+    }
+  },[monClient]);
 
   function addService(tarifId){
     const t = tarifsDisp.find(x=>x.id===tarifId);
@@ -1630,10 +1638,22 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
 
       {show&&(
         <div style={{background:"#060D1F",border:"1px solid #25D36640",borderRadius:"0 0 16px 16px",padding:16,borderTop:"none"}}>
-          <input value={nom} onChange={e=>setNom(e.target.value)} placeholder="Votre nom *"
-            style={{width:"100%",background:CARD,border:`1px solid ${BDR}`,borderRadius:12,padding:"11px",color:"#F8FAFF",fontSize:14,outline:"none",marginBottom:10}} />
-          <input value={tel} onChange={e=>setTel(e.target.value)} placeholder="Téléphone *" type="tel"
-            style={{width:"100%",background:CARD,border:`1px solid ${BDR}`,borderRadius:12,padding:"11px",color:"#F8FAFF",fontSize:14,outline:"none",marginBottom:10}} />
+          {monClient ? (
+            <div style={{background:CARD,border:`1px solid #25D36640`,borderRadius:12,padding:"11px 14px",marginBottom:10,display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:20}}>👤</span>
+              <div>
+                <p style={{color:"#F8FAFF",fontWeight:700,fontSize:13}}>{monClient.nom}</p>
+                <p style={{color:"#8892B0",fontSize:12}}>{monClient.tel}</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <input value={nom} onChange={e=>setNom(e.target.value)} placeholder="Votre nom *"
+                style={{width:"100%",background:CARD,border:`1px solid ${BDR}`,borderRadius:12,padding:"11px",color:"#F8FAFF",fontSize:14,outline:"none",marginBottom:10}} />
+              <input value={tel} onChange={e=>setTel(e.target.value)} placeholder="Téléphone *" type="tel"
+                style={{width:"100%",background:CARD,border:`1px solid ${BDR}`,borderRadius:12,padding:"11px",color:"#F8FAFF",fontSize:14,outline:"none",marginBottom:10}} />
+            </>
+          )}
 
           {/* ── Ajouter un service ── */}
           <p style={{fontSize:11,color:"#8892B0",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Ajouter un service</p>
@@ -1728,16 +1748,18 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
             <p style={{color:"#25D366",fontSize:11,marginBottom:8,textAlign:"center"}}>✅ Position GPS détectée</p>
           )}
 
-          {/* Code de parrainage */}
-          <div style={{marginBottom:10}}>
-            <input value={codeParrain} onChange={e=>setCodeParrain(e.target.value.toUpperCase())} placeholder="🎁 Code de parrainage (optionnel)"
-              style={{width:"100%",background:CARD,border:`1px solid rgba(255,184,0,0.3)`,borderRadius:12,padding:"11px",color:"#FFB800",fontSize:13,outline:"none",textTransform:"uppercase"}} />
-            {codeParrain&&(
-              <p style={{fontSize:11,color:(clients||[]).some(cl=>(cl.codeClient||"").toUpperCase()===codeParrain.trim())?"#4ADE80":"#FF6B6B",marginTop:4}}>
-                {(clients||[]).some(cl=>(cl.codeClient||"").toUpperCase()===codeParrain.trim())?"✅ Code valide — vous et votre parrain recevrez +50 points après votre 1ère commande payée":"❌ Code introuvable"}
-              </p>
-            )}
-          </div>
+          {/* Code de parrainage — uniquement pour les nouveaux clients */}
+          {!monClient && (
+            <div style={{marginBottom:10}}>
+              <input value={codeParrain} onChange={e=>setCodeParrain(e.target.value.toUpperCase())} placeholder="🎁 Code de parrainage (optionnel)"
+                style={{width:"100%",background:CARD,border:`1px solid rgba(255,184,0,0.3)`,borderRadius:12,padding:"11px",color:"#FFB800",fontSize:13,outline:"none",textTransform:"uppercase"}} />
+              {codeParrain&&(
+                <p style={{fontSize:11,color:(clients||[]).some(cl=>(cl.codeClient||"").toUpperCase()===codeParrain.trim())?"#4ADE80":"#FF6B6B",marginTop:4}}>
+                  {(clients||[]).some(cl=>(cl.codeClient||"").toUpperCase()===codeParrain.trim())?"✅ Code valide — vous et votre parrain recevrez +50 points après votre 1ère commande payée":"❌ Code introuvable"}
+                </p>
+              )}
+            </div>
+          )}
 
           <button onClick={envoyer} disabled={!nom||!tel||!adr||panier.length===0||sousTotal===0} style={{width:"100%",background:nom&&tel&&adr&&panier.length>0&&sousTotal>0?"linear-gradient(135deg,#25D366,#128C7E)":"#1A2240",border:"none",borderRadius:14,padding:"13px",color:"#fff",fontWeight:700,fontSize:15,cursor:nom&&tel&&adr&&panier.length>0?"pointer":"default"}}>
             📲 Envoyer la demande
@@ -1988,7 +2010,7 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
       )}
       {tab==="suivi"&&(
         <div style={{padding:"16px 16px 0"}}>
-          <RamassageBlock commandes={commandes} setCommandes={setCommandes} upsertCmd={upsertCmd} upsertClient={upsertClient} clients={clients} tarifs={tarifs} promos={promos} />
+          <RamassageBlock commandes={commandes} setCommandes={setCommandes} upsertCmd={upsertCmd} upsertClient={upsertClient} clients={clients} tarifs={tarifs} promos={promos} monClient={monClient} />
 
           {/* Barre de recherche */}
           <div style={{display:"flex",gap:8,marginBottom:14}}>
