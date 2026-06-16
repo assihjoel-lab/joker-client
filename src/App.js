@@ -1560,7 +1560,11 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
   function envoyer(){
     if(!nom||!tel||!adr)return;
     const demandeId="RAM-"+String(Math.floor(Math.random()*9000)+1000);
-    const existingCli=(clients||[]).find(cl=>cl.tel===tel.trim()||cl.nom?.toLowerCase()===nom.trim().toLowerCase());
+    const telTrim=tel.trim(), nomTrim=nom.trim();
+    // Le téléphone est l'identifiant fiable ; le nom seul ne sert qu'en dernier recours
+    // (fiches anciennes sans téléphone), pour éviter de mélanger deux clients homonymes.
+    const existingCli=(clients||[]).find(cl=>cl.tel&&cl.tel===telTrim)
+      || (clients||[]).find(cl=>!cl.tel&&cl.nom?.toLowerCase()===nomTrim.toLowerCase());
     const codeClient=existingCli?.codeClient||("CLI-"+nom.trim().toUpperCase().slice(0,3)+(tel.replace(/[^0-9]/g,"")||"0000").slice(-4));
     // Parrainage : valider le code (existe + différent du client lui-même)
     const codeParrainTrim = codeParrain.trim().toUpperCase();
@@ -1772,7 +1776,7 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
 
 
 // ─── ESPACE CLIENT ────────────────────────────────────────
-function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,friperie,rewards,tarifs,promos }){
+function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,friperie,rewards,tarifs,promos,cliReady }){
   const [tab,setTab]=useState("suivi");
   // Pré-remplir depuis URL ?ticket=XXX (scan QR code)
   const urlTicket = new URLSearchParams(window.location.search).get("ticket")||"";
@@ -1789,6 +1793,7 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
   const [codeInput,setCodeInput]=useState(localStorage.getItem("joker_code")||"");
   const [monClient,setMonClient]=useState(null);
   const [codeErr,setCodeErr]=useState(false);
+  const [autoLoginDone,setAutoLoginDone]=useState(false);
 
   function rechercherClient(){
     const code=codeInput.trim().toUpperCase();
@@ -1801,11 +1806,20 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
     else{ setCodeErr(true); setMonClient(null); }
   }
 
+  // Reconnexion automatique : si un code est déjà enregistré sur cet appareil,
+  // on reconnecte la personne sans qu'elle ait à recliquer à chaque visite.
+  useEffect(()=>{
+    if(!autoLoginDone && cliReady && codeInput.trim()){
+      rechercherClient();
+      setAutoLoginDone(true);
+    }
+  },[cliReady, autoLoginDone, codeInput]);
+
   const mesCommandes=monClient
     ?commandes.filter(c=>
-        c.client?.toLowerCase()===monClient.nom?.toLowerCase()||
-        (c.tel&&c.tel===monClient.tel)||
-        (c.codeClient&&c.codeClient===monClient.codeClient)
+        (monClient.codeClient&&c.codeClient===monClient.codeClient)||
+        (monClient.tel&&c.tel===monClient.tel)||
+        (!c.tel&&!monClient.tel&&c.client?.toLowerCase()===monClient.nom?.toLowerCase())
       ).slice().reverse()
     :[];
 
@@ -2370,6 +2384,7 @@ export default function App(){
         rewards={rewards}
         tarifs={tarifs}
         promos={promos}
+        cliReady={cliReady}
       />
     </div>
   );
