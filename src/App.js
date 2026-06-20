@@ -37,6 +37,16 @@ const PAIEMENTS = [
   { id:"cash",   label:"Espèces", emoji:"💵", color:"#4A7BF7" },
 ];
 
+const SOURCES_CLIENT = [
+  { id:"bouche",   label:"Bouche à oreille",     emoji:"🗣️", color:"#4ADE80" },
+  { id:"passage",  label:"En passant devant",    emoji:"🚶", color:"#00C2FF" },
+  { id:"reseaux",  label:"Réseaux sociaux",      emoji:"📱", color:"#A855F7" },
+  { id:"whatsapp", label:"WhatsApp",             emoji:"💬", color:"#25D366" },
+  { id:"parrainage",label:"Parrainage",          emoji:"🎁", color:"#FFB800" },
+  { id:"flyer",    label:"Flyer / Affiche",      emoji:"📋", color:"#FF6B6B" },
+  { id:"autre",    label:"Autre",                emoji:"❓", color:"#8892B0" },
+];
+
 const REWARDS_INIT = [
   { id:1, label:"Lavage offert",   desc:"1 cycle gratuit",   pts:100, emoji:"🫧", color:CYAN },
   { id:2, label:"-50% séchage",    desc:"Prochain séchage",  pts:60,  emoji:"🌀", color:BLU2 },
@@ -1508,6 +1518,7 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
   const [tel,     setTel]    = useState(monClient?.tel||"");
   const [adr,     setAdr]    = useState(monClient?.adresse||"");
   const [codeParrain, setCodeParrain] = useState("");
+  const [source, setSource] = useState("");
   const [sent,    setSent]   = useState(false);
   const [loading, setLoading]= useState(false);
   // Panier multi-services : [{tarifId, poids, qte}]
@@ -1603,7 +1614,7 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
       if(existingCli){
         upsertClient({...existingCli,codeClient,historique:[cmdEntry,...(existingCli.historique||[])],totalDepense:(existingCli.totalDepense||0)+demande.total});
       } else {
-        upsertClient({id:"cli_"+demandeId,nom:nom.trim(),tel:tel.trim(),adresse:adr,notes:"Demande ramassage",points:demande.points,totalDepense:demande.total,historique:[cmdEntry],codeClient,referredBy,referralRewarded:false});
+        upsertClient({id:"cli_"+demandeId,nom:nom.trim(),tel:tel.trim(),adresse:adr,notes:"Demande ramassage",points:demande.points,totalDepense:demande.total,historique:[cmdEntry],codeClient,referredBy,referralRewarded:false,source:source||""});
       }
     }
     // WhatsApp gérant
@@ -1617,7 +1628,7 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
     // WhatsApp client avec son code
     if(tel.trim()) sendWhatsApp(tel.trim(), `🃏 *JOKER Laverie & Service*%0A%0A✅ Demande de ramassage enregistrée !%0A%0A🎫 N° : ${demandeId}%0A🔑 Votre code client : *${codeClient}*%0A%0AConservez ce code pour suivre vos commandes dans notre appli.%0A%0A📱 joker-laverie.vercel.app`);
     setSent(true); setShow(false);
-    setNom(""); setTel(""); setAdr(""); setPanier([]); setCodeParrain("");
+    setNom(""); setTel(""); setAdr(""); setPanier([]); setCodeParrain(""); setSource("");
   }
 
   if(sent) return (
@@ -1762,6 +1773,21 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
                   {(clients||[]).some(cl=>(cl.codeClient||"").toUpperCase()===codeParrain.trim())?"✅ Code valide — vous et votre parrain recevrez +50 points après votre 1ère commande payée":"❌ Code introuvable"}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* Comment avez-vous connu JOKER — uniquement pour les nouveaux clients */}
+          {!monClient && (
+            <div style={{marginBottom:14}}>
+              <p style={{fontSize:11,color:"#8892B0",letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>📍 Comment avez-vous connu JOKER ? (optionnel)</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                {SOURCES_CLIENT.map(s=>(
+                  <button key={s.id} onClick={()=>setSource(source===s.id?"":s.id)}
+                    style={{background:source===s.id?`${s.color}22`:CARD,border:`1px solid ${source===s.id?s.color:BDR}`,borderRadius:12,padding:"9px 12px",color:source===s.id?s.color:"#8892B0",fontWeight:source===s.id?700:400,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                    <span>{s.emoji}</span>{s.label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
