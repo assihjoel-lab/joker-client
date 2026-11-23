@@ -1802,7 +1802,7 @@ function RamassageBlock({ commandes, setCommandes, upsertCmd, upsertClient, clie
 
 
 // ─── ESPACE CLIENT ────────────────────────────────────────
-function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,friperie,rewards,tarifs,promos,cliReady }){
+function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,friperie,rewards,tarifs,promos,cliReady,statutLaverie }){
   const [tab,setTab]=useState("suivi");
   // Pré-remplir depuis URL ?ticket=XXX (scan QR code)
   const urlTicket = new URLSearchParams(window.location.search).get("ticket")||"";
@@ -1935,10 +1935,17 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
         <Logo size={72} style={{margin:"0 auto 10px"}} />
         <h1 style={{fontFamily:"'Bebas Neue',cursive",fontSize:30,letterSpacing:4,margin:"0 0 4px"}}>JOKER LAVERIE</h1>
         <p style={{color:BLU2,fontSize:11,letterSpacing:3}}>PROPRETÉ · QUALITÉ · FIABILITÉ</p>
-        <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(0,194,255,0.1)",borderRadius:99,padding:"4px 14px",marginTop:8,border:"1px solid rgba(0,194,255,0.2)"}}>
-          <span style={{width:8,height:8,borderRadius:"50%",background:"#4ADE80",display:"inline-block",boxShadow:"0 0 8px #4ADE80"}} />
-          <span style={{fontSize:11,color:"#4ADE80",fontWeight:700}}>Ouvert · Lomé, Togo</span>
-        </div>
+        {(()=>{
+          const ferme=statutLaverie&&statutLaverie.ouvert===false;
+          const col=ferme?"#FF6B6B":"#4ADE80";
+          return (<>
+            <div style={{display:"inline-flex",alignItems:"center",gap:6,background:ferme?"rgba(255,107,107,0.1)":"rgba(0,194,255,0.1)",borderRadius:99,padding:"4px 14px",marginTop:8,border:`1px solid ${ferme?"rgba(255,107,107,0.3)":"rgba(0,194,255,0.2)"}`}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:col,display:"inline-block",boxShadow:`0 0 8px ${col}`}} />
+              <span style={{fontSize:11,color:col,fontWeight:700}}>{ferme?"Fermé":"Ouvert"} · Lomé, Togo</span>
+            </div>
+            {ferme&&statutLaverie.message&&<p style={{fontSize:12,color:"#FFB800",marginTop:8,padding:"0 16px"}}>{statutLaverie.message}</p>}
+          </>);
+        })()}
       </div>
 
       {/* ── TABS ── */}
@@ -2002,6 +2009,29 @@ function ClientSpace({ commandes,setCommandes,upsertCmd,upsertClient,clients,fri
                   </div>
                 ))}
               </div>
+              {/* Niveau de fidélité */}
+              {(()=>{
+                const pts=monClient.points||0;
+                const lv=getLevel(pts);
+                const nextLv=LEVEL_SEUILS.find(l=>l.min>pts);
+                const rw=(rewards||[]).slice().sort((a,b)=>a.pts-b.pts);
+                const dispo=rw.filter(r=>pts>=r.pts);
+                const proch=rw.find(r=>pts<r.pts);
+                const cible=proch?proch.pts:null;
+                const pct=cible?Math.min(100,Math.round(pts/cible*100)):100;
+                return (
+                  <div style={{background:CARD,borderRadius:16,padding:14,marginBottom:16,border:`1px solid ${lv.color}40`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                      <span style={{fontWeight:700,fontSize:14,color:lv.color}}>🏅 Niveau {lv.label}{lv.remise>0?` · -${lv.remise}%`:""}</span>
+                      <span style={{fontSize:12,color:"#8892B0"}}>{pts} pts</span>
+                    </div>
+                    {cible&&<div style={{height:8,background:"#060D1F",borderRadius:99,overflow:"hidden",marginBottom:8}}><div style={{width:pct+"%",height:"100%",background:`linear-gradient(90deg,${BLU},${CYAN})`,borderRadius:99}} /></div>}
+                    {dispo.length>0&&<p style={{fontSize:12,color:"#FFD700",fontWeight:700,marginBottom:4}}>🎁 Cadeau disponible : {dispo.map(r=>(r.emoji||"")+" "+r.label).join(" · ")} — demandez-le à la laverie !</p>}
+                    {proch&&<p style={{fontSize:12,color:"#8892B0"}}>Plus que <strong style={{color:CYAN}}>{proch.pts-pts} pts</strong> pour {(proch.emoji||"")+" "+proch.label}</p>}
+                    {nextLv&&<p style={{fontSize:11,color:"#8892B0",marginTop:4}}>Niveau {nextLv.label} dans {nextLv.min-pts} pts{nextLv.remise>0?` (-${nextLv.remise}% sur vos commandes)`:""}</p>}
+                  </div>
+                );
+              })()}
               {/* Commandes en cours */}
               {mesCommandes.filter(c=>c.statut!=="Récupéré").length>0&&(
                 <div style={{marginBottom:14}}>
@@ -2374,6 +2404,7 @@ export default function App(){
   const [friperie,   ,  , fripReady] = useFireCollection("friperie",   []);
   const [rewards,    ,  , rewReady]  = useFireDoc("config","rewards",   []);
   const [tarifs,     ,  , tarReady]  = useFireDoc("config","tarifs",    TARIFS_INIT);
+  const [statutLaverie, , , statReady] = useFireDoc("config","statut", {ouvert:true,message:""});
   const [clients, upsertClient, , cliReady] = useFireCollection("clients", []);
   const [promos, , , promoReady] = useFireCollection("promos", []);
 
@@ -2411,6 +2442,7 @@ export default function App(){
         tarifs={tarifs}
         promos={promos}
         cliReady={cliReady}
+        statutLaverie={statutLaverie}
       />
     </div>
   );
